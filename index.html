@@ -140,9 +140,11 @@
     }
 
     function replacePageContents(contents) {
-      document.open();
-      document.write(contents);
-      document.close();
+      if (contents) {
+        document.open();
+        document.write(contents);
+        document.close();
+      }
     }
     window.openFile = async function (fileHandle) {
       const file = await twFileManager.openFile(fileHandle);
