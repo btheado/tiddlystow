@@ -3,7 +3,6 @@
   <title>TiddlyStow - stow TiddlyWiki files locally using the browser file system api</title>
   <script type="module">
     import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm';
-    import Alpine from 'https://unpkg.com/alpinejs@3.9.2/dist/module.esm.js';
     let idbKeyval = {get, set};
 
     /*
@@ -160,34 +159,46 @@
       return file;
     }
 
-    // Expose this functionality to the html on the page
-    window.twFileManager = twFileManager;
+    function displayBrowserSupportMessage() {
+      const elem = document.getElementById("support-message");
+      if (elem) {
+        elem.innerHTML = window.showSaveFilePicker ?
+          "Good news, your browser supports it." :
+          "<b>Unfortunately your browser does not support it.</b>"
+      }
+    }
 
-    // Initialize alpinejs
-    Alpine.start();
+    function displayRecentFiles() {
+      const elem = document.getElementById("recent-files");
+      if (elem) {
+        twFileManager.getRecent().
+          then(recentFiles => {
+            if (recentFiles) {
+              const list = document.createElement('ul');
+              for (const recent of recentFiles) {
+                const li = document.createElement('li'),
+                      button = Object.assign(document.createElement('button'), {
+                        type: 'button',
+                        onclick: openFile.bind(null, recent),
+                        innerText: recent.name
+                      });
+                li.appendChild(button);
+                list.appendChild(li);
+              }
+              elem.innerText = "Open existing from a recent file:";
+              elem.appendChild(list);
+            }
+          })
+      }
+    }
+    window.onload = () => {
+      displayBrowserSupportMessage();
+      displayRecentFiles();
+    }
   </script>
-  <style>
-  [x-cloak] {
-    display: none !important;
-  }
-  </style>
 </head>
 <body>
-  <div
-    x-cloak
-    x-data="{
-      file: {},
-      recentFiles: [],
-      twEditions: [
-        // Any url here requires cross origin requests to be allowed.
-        // tiddlywiki.com meets that requirement
-        { url: 'https://tiddlywiki.com/empty.html' },
-        { url: 'https://tiddlywiki.com/prerelease' }
-      ]
-    }"
-    x-init="recentFiles = await twFileManager.getRecent()"
-    >
-    <div x-show="!file.contents">
+    <div>
       <h1>TiddlyStow</h1>
       <p>This simple page is a helper for loading a local <a href="https://tiddlywiki.com">TiddlyWiki</a>
       file and storing it back to the same local file.</p>
@@ -196,8 +207,7 @@
         <li>Be sure to make frequent backups of your file!</li>
         <li>
           Not all browsers <a href="https://caniuse.com/native-filesystem-api">support the local files feature</a>.
-          <span x-show="window.showSaveFilePicker !== undefined">Good news, your browser supports it.</span>
-          <span x-show="window.showSaveFilePicker === undefined"><b>Unfortunately, your browser does not support it.</b></span>
+          <span id="support-message"></span>
         </li>
         <li>Only works with single file TiddlyWiki instances.</li>
         <li>Requires the <a href="https://github.com/Jermolene/TiddlyWiki5/pull/4908">custom saver feature</a> introduced in TiddlyWiki version 5.1.23. Older versions will fall back to the download saver in which case using this page provides no benefit.</li>
@@ -207,24 +217,15 @@
         <li>After loading a Tiddlywiki file, refresh the page to get back to the file picker.</li>
       </ul>
       </p>
-      <button type="button" x-on:click="openFile()">open existing from a local file...</button>
-      <div x-show="recentFiles.length">
-        Open existing from a recent file:
-        <ul>
-          <template x-for="recent in recentFiles">
-            <li><button type="button" x-on:click="openFile(recent)" x-text="recent.name"></button></li>
-          </template>
-        </ul>
-      </div>
+      <button type="button" onclick="openFile()">open existing from a local file...</button>
+      <div id="recent-files"></div>
       <div>
       Open new from a remote url:
       <ul>
-        <template x-for="edition in twEditions">
-          <li><button type="button" x-on:click="openFromUrl(edition.url)" x-text="edition.url"></button></li>
-        </template>
+        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
+        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease')">tiddlywiki.com/prerelease</button></li>
       </ul>
       </div>
     </div>
-  </div>
 </body>
 </html>
