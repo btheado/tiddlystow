@@ -139,6 +139,25 @@
       setTwCustomSaveAsSaver = () => {}
     }
 
+    function replacePageContents(contents) {
+      document.open();
+      document.write(contents);
+      document.close();
+    }
+    window.openFile = async function (fileHandle) {
+      const file = await twFileManager.openFile(fileHandle);
+      replacePageContents(file.contents);
+      if (file.fileHandle) {
+        twFileManager.addRecent(file.fileHandle);
+      }
+      return file;
+    }
+    window.openFromUrl = async function (url) {
+      const file = await twFileManager.openFromUrl(url);
+      replacePageContents(file.contents);
+      return file;
+    }
+
     // Expose this functionality to the html on the page
     window.twFileManager = twFileManager;
 
@@ -164,14 +183,7 @@
         { url: 'https://tiddlywiki.com/prerelease' }
       ]
     }"
-    x-init="
-      $watch('file', async f => {
-        if (f.fileHandle) {
-          recentFiles = await twFileManager.addRecent(f.fileHandle);
-        }
-      })
-      recentFiles = await twFileManager.getRecent();
-    "
+    x-init="recentFiles = await twFileManager.getRecent()"
     >
     <div x-show="!file.contents">
       <h1>TiddlyStow</h1>
@@ -192,12 +204,12 @@
         <li>After loading a Tiddlywiki file, refresh the page to get back to the file picker.</li>
       </ul>
       </p>
-      <button type="button" x-on:click="file = await twFileManager.openFile()">open existing from a local file...</button>
+      <button type="button" x-on:click="openFile()">open existing from a local file...</button>
       <div x-show="recentFiles.length">
         Open existing from a recent file:
         <ul>
           <template x-for="recent in recentFiles">
-            <li><button type="button" x-on:click="file = await twFileManager.openFile(recent)" x-text="recent.name"></button></li>
+            <li><button type="button" x-on:click="openFile(recent)" x-text="recent.name"></button></li>
           </template>
         </ul>
       </div>
@@ -205,13 +217,10 @@
       Open new from a remote url:
       <ul>
         <template x-for="edition in twEditions">
-          <li><button type="button" x-on:click="file = await twFileManager.openFromUrl(edition.url)" x-text="edition.url"></button></li>
+          <li><button type="button" x-on:click="openFromUrl(edition.url)" x-text="edition.url"></button></li>
         </template>
       </ul>
       </div>
-    </div>
-    <div x-show="file.contents">
-      <iframe height="100%" width="100%" x-bind:srcdoc="file.contents"/>
     </div>
   </div>
 </body>
