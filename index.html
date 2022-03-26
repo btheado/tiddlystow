@@ -1,0 +1,218 @@
+<html>
+<head>
+  <title>TiddlyStow - stow TiddlyWiki files locally using the browser file system api</title>
+  <script type="module">
+    import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6/+esm';
+    import Alpine from 'https://unpkg.com/alpinejs@3.9.2/dist/module.esm.js';
+    let idbKeyval = {get, set};
+
+    /*
+     * Returns a function which can be used as a TiddlyWiki saver.
+     * The saver will write the given text to the given fileHandle
+     */
+    function createTwCustomSaver(fileHandle) {
+      return function(text, method, callback) {
+        fileHandle.createWritable()
+          .then(writable => {
+            writable.write(text);
+            return writable;
+          }).then(writable => {
+            writable.close();
+            callback(null);
+          }).catch(error => {
+            callback(error);
+          });
+        return true;
+      }
+    }
+
+    /* This saver is used when a local file is opened from disk */
+    function setTwCustomSaver(fileHandle) {
+       // Tiddlywiki Version 5.1.23 introduced the "custom saver" which will call
+       // a window.$tw.customSaver.save function from its current frame
+       // or parent frame.
+      window.$tw = {customSaver: {save: createTwCustomSaver(fileHandle)}};
+    }
+
+    /*
+     * This "SaveAs" saver is used when new wiki is loaded from url.
+     * The user is not prompted for a file to save to until the first save
+     */
+    function setTwCustomSaveAsSaver() {
+      let writeTw;
+      let save = function(text, method, callback) {
+        if (writeTw) {
+          writeTw(text, method, callback);
+        } else {
+           // writeTw function is empty, so prompt the user for file handle
+           // and create the writeTw function
+          window.showSaveFilePicker()
+            .then(fileHandle => {
+              writeTw = createTwCustomSaver(fileHandle);
+              writeTw(text, method, callback);
+              twFileManager.addRecent(fileHandle);
+            });
+        }
+        return true;
+      }
+      window.$tw = {customSaver: {save: save}};
+    }
+
+    const twFileManager = {
+      openFile: async function(fileHandle) {
+        if (fileHandle) {
+          // fileHandle may have come from indexDB in which case permission must be re-queried
+          const options = {mode: 'read'};
+          if ((await fileHandle.queryPermission(options)) !== 'granted') {
+            await fileHandle.requestPermission(options);
+          }
+        } else {
+          // No fileHandle given. Prompt user to choose one from disk
+          [fileHandle] = await window.showOpenFilePicker();
+        }
+        const file = await fileHandle.getFile();
+        const contents = await file.text();
+        setTwCustomSaver(fileHandle);
+        return {fileHandle, contents};
+      },
+
+      openFromUrl: async function(url) {
+        const contents = await fetch(url).then(res => res.text());
+        setTwCustomSaveAsSaver();
+        return {contents};
+      },
+
+      /* This code modified from https://github.com/GoogleChromeLabs/text-editor/blob/main/src/inline-scripts/menu-recent.js */
+      /* as retrieved on 2022/03/20 */
+      /*
+       * File handles can be serialized, but only to IndexDB. Localstorage is not supported.
+       */
+      addRecent: async function(fileHandle) {
+        let recentFiles = (await idbKeyval.get('recentFiles')) || [];
+
+        // If isSameEntry isn't available, we can't store the file handle
+        if (!fileHandle.isSameEntry) {
+          console.warn('Saving of recents is unavailable.');
+          return recentFiles;
+        }
+
+        // Loop through the list of recent files and make sure the file we're
+        // adding isn't already there. This is gross.
+        const inList = await Promise.all(recentFiles.map((f) => {
+          return fileHandle.isSameEntry(f);
+        }));
+        if (inList.some((val) => val)) {
+          return recentFiles;
+        }
+
+        // Add the new file handle to the top of the list, and remove any old ones.
+        recentFiles.unshift(fileHandle);
+        if (recentFiles.length > 5) {
+          recentFiles.pop();
+        }
+
+        // Save the list of recent files.
+        idbKeyval.set('recentFiles', recentFiles);
+        return recentFiles;
+      },
+
+      getRecent: async function () {
+        return (await idbKeyval.get('recentFiles')) || [];
+      }
+    }
+
+    // Allow indexdb to be disabled
+    if (window.location.hash.search("norecent") >= 0) {
+      const noop = async () => {return []};
+      twFileManager.addRecent = noop;
+      twFileManager.getRecent = noop;
+    }
+    
+    // Prevent errors if the browser doesn't support file system api
+    if (!window.showOpenFilePicker) {
+      twFileManager.openFile = async () => {
+        window.alert("This browser doesn't support opening files");
+        return {}
+      }
+    }
+    if (!window.showSaveFilePicker) {
+      setTwCustomSaveAsSaver = () => {}
+    }
+
+    // Expose this functionality to the html on the page
+    window.twFileManager = twFileManager;
+
+    // Initialize alpinejs
+    Alpine.start();
+  </script>
+  <style>
+  [x-cloak] {
+    display: none !important;
+  }
+  </style>
+</head>
+<body>
+  <div
+    x-cloak
+    x-data="{
+      file: {},
+      recentFiles: [],
+      twEditions: [
+        // Any url here requires cross origin requests to be allowed.
+        // tiddlywiki.com meets that requirement
+        { url: 'https://tiddlywiki.com/empty.html' },
+        { url: 'https://tiddlywiki.com/prerelease' }
+      ]
+    }"
+    x-init="
+      $watch('file', async f => {
+        if (f.fileHandle) {
+          recentFiles = await twFileManager.addRecent(f.fileHandle);
+        }
+      })
+      recentFiles = await twFileManager.getRecent();
+    "
+    >
+    <div x-show="!file.contents">
+      <h1>TiddlyStow</h1>
+      <p>This simple page is a helper for loading a local <a href="https://tiddlywiki.com">TiddlyWiki</a>
+      file and storing it back to the same local file.</p>
+      <ul>
+        <li>Be sure to have a backup of any file before opening it here!</li>
+        <li>Be sure to make frequent backups of your file!</li>
+        <li>
+          Not all browsers <a href="https://caniuse.com/native-filesystem-api">support the local files feature</a>.
+          <span x-show="window.showSaveFilePicker !== undefined">Good news, your browser supports it.</span>
+          <span x-show="window.showSaveFilePicker === undefined"><b>Unfortunately, your browser does not support it.</b></span>
+        </li>
+        <li>Only works with single file TiddlyWiki instances.</li>
+        <li>Requires the <a href="https://github.com/Jermolene/TiddlyWiki5/pull/4908">custom saver feature</a> introduced in TiddlyWiki version 5.1.23. Older versions will fall back to the download saver in which case using this page provides no benefit.</li>
+        <li>Prefer not to keep a list of recent files in your browser storage? Click <a href="#norecent">here</a> and refresh the page.</li>
+        <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a> is a similar project, but has more features and is bundled as a TiddlyWiki plugin.</li>
+        <li>After loading a Tiddlywiki file, refresh the page to get back to the file picker.</li>
+      </ul>
+      </p>
+      <button type="button" x-on:click="file = await twFileManager.openFile()">open existing from a local file...</button>
+      <div x-show="recentFiles.length">
+        Open existing from a recent file:
+        <ul>
+          <template x-for="recent in recentFiles">
+            <li><button type="button" x-on:click="file = await twFileManager.openFile(recent)" x-text="recent.name"></button></li>
+          </template>
+        </ul>
+      </div>
+      <div>
+      Open new from a remote url:
+      <ul>
+        <template x-for="edition in twEditions">
+          <li><button type="button" x-on:click="file = await twFileManager.openFromUrl(edition.url)" x-text="edition.url"></button></li>
+        </template>
+      </ul>
+      </div>
+    </div>
+    <div x-show="file.contents">
+      <iframe height="100%" width="100%" x-bind:srcdoc="file.contents"/>
+    </div>
+  </div>
+</body>
+</html>
