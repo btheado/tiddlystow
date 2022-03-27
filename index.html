@@ -195,6 +195,10 @@
 
       getRecent: async function () {
         return (await idbKeyval.get('recentFiles')) || [];
+      },
+
+      clearRecent: async function () {
+        await idbKeyval.del('recentFiles');
       }
     }
 
@@ -246,12 +250,21 @@
       }
     }
 
+    function clearRecent() {
+      twFileManager.clearRecent().then(() => {
+        const elem = document.getElementById("recent-files");
+        if (elem) {
+          elem.innerText = "";
+        }
+      });
+    }
+
     function displayRecentFiles() {
       const elem = document.getElementById("recent-files");
       if (elem) {
         twFileManager.getRecent().
           then(recentFiles => {
-            if (recentFiles) {
+            if (recentFiles && recentFiles.length > 0) {
               const list = document.createElement('ul');
               for (const recent of recentFiles) {
                 const li = document.createElement('li'),
@@ -263,8 +276,14 @@
                 li.appendChild(button);
                 list.appendChild(li);
               }
-              elem.innerText = "Open existing from a recent file:";
+              const clearButton = Object.assign(document.createElement('button'), {
+                type: 'button',
+                onclick: clearRecent,
+                innerText: 'Clear recent file list'
+              });
+              elem.innerText = 'Open existing from a recent file:';
               elem.appendChild(list);
+              elem.appendChild(clearButton);
             }
           })
       }
