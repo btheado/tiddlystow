@@ -1,6 +1,7 @@
 <html>
 <head>
-  <title>TiddlyStow - ʹ��������ļ�ϵͳapi���ش洢TiddlyWiki�ļ�</title>
+  <title>TiddlyStow - 使用浏览器文件系统api本地存储TiddlyWiki文件</title>
+  <link rel="shortcut icon" type="images/x-icon" href="https://btheado.github.io/tiddlystow/favicon.ico">
   <script type="module">
     /* From https://github.com/jakearchibald/idb-keyval */
     /* Retreived 2020-04-10 */
@@ -169,7 +170,7 @@
 
         // If isSameEntry isn't available, we can't store the file handle
         if (!fileHandle.isSameEntry) {
-          console.warn('���ܱ�����������ݡ�');
+          console.warn('不能保存最近的数据。');
           return recentFiles;
         }
 
@@ -212,7 +213,7 @@
     // Prevent errors if the browser doesn't support file system api
     if (!window.showOpenFilePicker) {
       twFileManager.openFile = async () => {
-        window.alert("���������֧�ִ��ļ�");
+        window.alert("此浏览器不支持打开文件");
         return {}
       }
     }
@@ -245,8 +246,8 @@
       const elem = document.getElementById("support-message");
       if (elem) {
         elem.innerHTML = window.showSaveFilePicker ?
-          "<b>����Ϣ����������֧������</b>" :
-          "<b>��Ǹ�������������֧������</b>"
+          "<b>好消息！你的浏览器支持它。</b>" :
+          "<b>抱歉！您的浏览器不支持它。</b>"
       }
     }
 
@@ -279,9 +280,9 @@
               const clearButton = Object.assign(document.createElement('button'), {
                 type: 'button',
                 onclick: clearRecent,
-                innerText: '���������ļ��б�'
+                innerText: '清除最近的文件列表'
               });
-              elem.innerText = '�����ʹ�ù����ļ���ʼ��';
+              elem.innerText = '从最近使用过的文件开始：';
               elem.appendChild(list);
               elem.appendChild(clearButton);
             }
@@ -297,31 +298,30 @@
 <body>
     <div>
       <h1>TiddlyStow</h1>
-      <p>����򵥵�ҳ���Ǽ��ر��س�������� <a href="https://tiddlywiki.com">TiddlyWiki</a>
-     �ļ�������洢����ͬ�ı����ļ���</p>
+      <p>这个简单的页面用于加载本地<a href="https://tiddlywiki.com">TiddlyWiki太微</a>程序文件。并将其保存到相同的本地文件中。</p>
       <ul>
-        <li>��������κ��ļ�֮ǰ����ȷ����һ������!</li>
-        <li>һ��Ҫ������������ļ�!</li>
+        <li>在这里打开任何文件之前，请确保有一个备份!</li>
+        <li>一定要经常备份你的文件!</li>
         <li>
-          ���������е�������� <a href="https://caniuse.com/native-filesystem-api">֧�ֱ����ļ�����</a>.
+          并不是所有的浏览器都 <a href="https://caniuse.com/native-filesystem-api">支持本地文件特性</a>.
           <span id="support-message"></span>
         </li>
-        <li>�������ڵ���TiddlyWiki�ļ�ʵ����</li>
-        <li>��ϲ����������洢�б���������ļ��б�?��� <a href="#norecent">����</a> ��ˢ��ҳ�档</li>
-        <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a> ��һ�����Ƶ���Ŀ�����и���Ĺ��ܣ�������ΪTiddlyWiki�����</li>
-        <li>Դ������� <a href="https://github.com/btheado/tiddlystow">Github</a> �������������ʹ�á��鿴ҳ��Դ���롱��</li>
-        <li>����Tiddlywiki�ļ���ˢ��ҳ�淵�ص��ļ�ѡ������</li>
+        <li>仅适用于单个TiddlyWiki文件实例。</li>
+        <li>不喜欢在浏览器存储中保存最近的文件列表？点击 <a href="#norecent">这里</a> 并刷新页面。</li>
+        <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a> 是一个类似的项目，但有更多的功能，并捆绑为TiddlyWiki插件。</li>
+        <li>源代码可在 <a href="https://github.com/btheado/tiddlystow">Github</a> 或者在浏览器中使用“查看页面源代码”。</li>
+        <li>加载Tiddlywiki文件后，刷新页面返回到文件选择器。</li>
       </ul>
       </p>
       <br>
-      <button type="button" onclick="openFile()">�ӱ��ش����е��ļ�...</button>
+      <button type="button" onclick="openFile()">从本地打开现有的文件...</button>
       
       <div id="recent-files"></div><br>
       
       
       
       <div>
-      ��Զ��url���µ�wiki:
+      从远程url打开新的wiki:
       <ul>
         <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
         <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease')">tiddlywiki.com/prerelease</button></li>
