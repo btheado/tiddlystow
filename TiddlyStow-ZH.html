@@ -117,6 +117,15 @@
      * The user is not prompted for a file to save to until the first save
      */
     function setTwCustomSaveAsSaver() {
+      
+      //设置默认保存文件类型为HTML文件
+      const opts = {
+        types: [{
+          description: 'HTML file',
+          accept: { 'text/html': ['.html'] },
+        }]
+      }
+      
       let writeTw;
       let save = function(text, method, callback) {
         if (writeTw) {
@@ -124,7 +133,7 @@
         } else {
            // writeTw function is empty, so prompt the user for file handle
            // and create the writeTw function
-          window.showSaveFilePicker()
+          window.showSaveFilePicker(opts)
             .then(fileHandle => {
               writeTw = createTwCustomSaver(fileHandle);
               writeTw(text, method, callback);
