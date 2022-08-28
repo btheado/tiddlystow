@@ -1,7 +1,101 @@
-<html>
+<!DOCTYPE html>
+<html lang="zh-CN">
+
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TiddlyStow - 使用浏览器文件系统api本地存储TiddlyWiki文件</title>
   <link rel="shortcut icon" type="images/x-icon" href="https://btheado.github.io/tiddlystow/favicon.ico">
+
+
+  <!-- Miao新建的新的布局UI样式表 -->
+  <style type="text/css">
+    .aside {
+      background-color: #566d97;
+      color: whitesmoke;
+      text-align: center;
+      width: 150px;
+      min-height: 545px;
+    }
+
+    .container.is-vertical {
+      flex-direction: column;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: row;
+      flex: 1;
+      flex-basis: auto;
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    .main {
+      margin-left: 20px;
+      min-width: 470px;
+    }
+
+    .sub-menu-button {
+      width: 150px;
+      height: 47px;
+
+    }
+  </style>
+</head>
+
+
+<body data-version="3.4.0" data-settings-changed-at="0" data-cid="1661314345755">
+  <div class="container">
+    <aside class="aside" id="aside-000">
+      <div class="scrollbar">
+        <p class="aside-title">从远程url打开新的wiki</p>
+
+        <button class="sub-menu-button" type="button"
+          onclick="openFromUrl('https://twpub-book.vercel.app/empty-zh-5.2.3.html')">空白版TiddlyWiki-5.2.3</button>
+        <button class="sub-menu-button" type="button"
+          onclick="openFromUrl('https://twpub-book.vercel.app/TidGi_v0.7.7.html')">TidGi单文件版5.2.3</button>
+        <button class="sub-menu-button" type="button"
+          onclick="openFromUrl('https://twpub-book.vercel.app/tiddlywiki-xp_Plugins.html')">TiddlyWiki-XP单文件版</button>
+        <button class="sub-menu-button" type="button"
+          onclick="openFromUrl('https://twpub-book.vercel.app/TiddlyMemo墨屉.html')">TiddlyMemo墨屉</button>
+        <button class="sub-menu-button" type="button"
+          onclick="openFromUrl('https://sugarhope-com.github.io/MTproject/')">MTproject规划&复习模板</button>
+
+      </div>
+    </aside>
+    <div class="container is-vertical">
+      <main class="main">
+
+
+        <h1>TiddlyStow</h1>
+        <p>这个简单的页面用于加载本地<a href="https://tiddlywiki.com/">TiddlyWiki太微</a>程序文件。并将其保存到相同的本地文件中。</p>
+        <ul>
+          <li>在这里打开任何文件之前，请确保有一个备份!</li>
+          <li>一定要经常备份你的文件!</li>
+          <li>
+            并不是所有的浏览器都 <a href="https://caniuse.com/native-filesystem-api">支持本地文件特性</a>.
+            <span id="support-message"><b>好消息！你的浏览器支持它。</b></span>
+          </li>
+          <li>仅适用于单个TiddlyWiki文件实例。</li>
+          <li>不喜欢在浏览器存储中保存最近的文件列表？点击 <a href="https://twpub-book.vercel.app/tiddlystow.html#norecent">这里</a> 并刷新页面。</li>
+          <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a>
+            是一个类似的项目，但有更多的功能，并捆绑为TiddlyWiki插件。</li>
+          <li>源代码可在 <a href="https://github.com/btheado/tiddlystow">Github</a> 或者在浏览器中使用“查看页面源代码”。</li>
+          <li>加载Tiddlywiki文件后，刷新页面返回到文件选择器。</li>
+          <li>从远程URL加载新的Tiddlywiki文件，需要一点时间下载文件，请耐心等待几秒。</li>
+        </ul>
+
+
+        <p></p>
+        <button type="button" onclick="openFile()">从本地打开现有的文件...</button>
+        <div id="recent-files"></div>
+
+
+      </main>
+    </div>
+  </div>
+
   <script type="module">
     /* From https://github.com/jakearchibald/idb-keyval */
     /* Retreived 2020-04-10 */
@@ -10,66 +104,66 @@
       'use strict';
 
       class Store {
-          constructor(dbName = 'keyval-store', storeName = 'keyval') {
-              this.storeName = storeName;
-              this._dbp = new Promise((resolve, reject) => {
-                  const openreq = indexedDB.open(dbName, 1);
-                  openreq.onerror = () => reject(openreq.error);
-                  openreq.onsuccess = () => resolve(openreq.result);
-                  // First time setup: create an empty object store
-                  openreq.onupgradeneeded = () => {
-                      openreq.result.createObjectStore(storeName);
-                  };
-              });
-          }
-          _withIDBStore(type, callback) {
-              return this._dbp.then(db => new Promise((resolve, reject) => {
-                  const transaction = db.transaction(this.storeName, type);
-                  transaction.oncomplete = () => resolve();
-                  transaction.onabort = transaction.onerror = () => reject(transaction.error);
-                  callback(transaction.objectStore(this.storeName));
-              }));
-          }
+        constructor(dbName = 'keyval-store', storeName = 'keyval') {
+          this.storeName = storeName;
+          this._dbp = new Promise((resolve, reject) => {
+            const openreq = indexedDB.open(dbName, 1);
+            openreq.onerror = () => reject(openreq.error);
+            openreq.onsuccess = () => resolve(openreq.result);
+            // First time setup: create an empty object store
+            openreq.onupgradeneeded = () => {
+              openreq.result.createObjectStore(storeName);
+            };
+          });
+        }
+        _withIDBStore(type, callback) {
+          return this._dbp.then(db => new Promise((resolve, reject) => {
+            const transaction = db.transaction(this.storeName, type);
+            transaction.oncomplete = () => resolve();
+            transaction.onabort = transaction.onerror = () => reject(transaction.error);
+            callback(transaction.objectStore(this.storeName));
+          }));
+        }
       }
       let store;
       function getDefaultStore() {
-          if (!store)
-              store = new Store();
-          return store;
+        if (!store)
+          store = new Store();
+        return store;
       }
       function get(key, store = getDefaultStore()) {
-          let req;
-          return store._withIDBStore('readonly', store => {
-              req = store.get(key);
-          }).then(() => req.result);
+        let req;
+        return store._withIDBStore('readonly', store => {
+          req = store.get(key);
+        }).then(() => req.result);
       }
       function set(key, value, store = getDefaultStore()) {
-          return store._withIDBStore('readwrite', store => {
-              store.put(value, key);
-          });
+        return store._withIDBStore('readwrite', store => {
+          store.put(value, key);
+        });
       }
       function del(key, store = getDefaultStore()) {
-          return store._withIDBStore('readwrite', store => {
-              store.delete(key);
-          });
+        return store._withIDBStore('readwrite', store => {
+          store.delete(key);
+        });
       }
       function clear(store = getDefaultStore()) {
-          return store._withIDBStore('readwrite', store => {
-              store.clear();
-          });
+        return store._withIDBStore('readwrite', store => {
+          store.clear();
+        });
       }
       function keys(store = getDefaultStore()) {
-          const keys = [];
-          return store._withIDBStore('readonly', store => {
-              // This would be store.getAllKeys(), but it isn't supported by Edge or Safari.
-              // And openKeyCursor isn't supported by Safari.
-              (store.openKeyCursor || store.openCursor).call(store).onsuccess = function () {
-                  if (!this.result)
-                      return;
-                  keys.push(this.result.key);
-                  this.result.continue();
-              };
-          }).then(() => keys);
+        const keys = [];
+        return store._withIDBStore('readonly', store => {
+          // This would be store.getAllKeys(), but it isn't supported by Edge or Safari.
+          // And openKeyCursor isn't supported by Safari.
+          (store.openKeyCursor || store.openCursor).call(store).onsuccess = function () {
+            if (!this.result)
+              return;
+            keys.push(this.result.key);
+            this.result.continue();
+          };
+        }).then(() => keys);
       }
 
       exports.Store = Store;
@@ -89,7 +183,7 @@
      * The saver will write the given text to the given fileHandle
      */
     function createTwCustomSaver(fileHandle) {
-      return function(text, method, callback) {
+      return function (text, method, callback) {
         fileHandle.createWritable()
           .then(writable => {
             writable.write(text);
@@ -106,10 +200,10 @@
 
     /* This saver is used when a local file is opened from disk */
     function setTwCustomSaver(fileHandle) {
-       // Tiddlywiki Version 5.1.23 introduced the "custom saver" which will call
-       // a window.$tw.customSaver.save function from its current frame
-       // or parent frame.
-      window.$tw = {customSaver: {save: createTwCustomSaver(fileHandle)}};
+      // Tiddlywiki Version 5.1.23 introduced the "custom saver" which will call
+      // a window.$tw.customSaver.save function from its current frame
+      // or parent frame.
+      window.$tw = { customSaver: { save: createTwCustomSaver(fileHandle) } };
     }
 
     /*
@@ -117,14 +211,23 @@
      * The user is not prompted for a file to save to until the first save
      */
     function setTwCustomSaveAsSaver() {
+
+      //设置默认保存文件类型为HTML文件
+      const opts = {
+        types: [{
+          description: 'HTML file',
+          accept: { 'text/html': ['.html'] },
+        }]
+      }
+
       let writeTw;
-      let save = function(text, method, callback) {
+      let save = function (text, method, callback) {
         if (writeTw) {
           writeTw(text, method, callback);
         } else {
-           // writeTw function is empty, so prompt the user for file handle
-           // and create the writeTw function
-          window.showSaveFilePicker()
+          // writeTw function is empty, so prompt the user for file handle
+          // and create the writeTw function
+          window.showSaveFilePicker(opts)
             .then(fileHandle => {
               writeTw = createTwCustomSaver(fileHandle);
               writeTw(text, method, callback);
@@ -133,14 +236,14 @@
         }
         return true;
       }
-      window.$tw = {customSaver: {save: save}};
+      window.$tw = { customSaver: { save: save } };
     }
 
     const twFileManager = {
-      openFile: async function(fileHandle) {
+      openFile: async function (fileHandle) {
         if (fileHandle) {
           // fileHandle may have come from indexDB in which case permission must be re-queried
-          const options = {mode: 'read'};
+          const options = { mode: 'read' };
           if ((await fileHandle.queryPermission(options)) !== 'granted') {
             await fileHandle.requestPermission(options);
           }
@@ -151,13 +254,13 @@
         const file = await fileHandle.getFile();
         const contents = await file.text();
         setTwCustomSaver(fileHandle);
-        return {fileHandle, contents};
+        return { fileHandle, contents };
       },
 
-      openFromUrl: async function(url) {
+      openFromUrl: async function (url) {
         const contents = await fetch(url).then(res => res.text());
         setTwCustomSaveAsSaver();
-        return {contents};
+        return { contents };
       },
 
       /* This code modified from https://github.com/GoogleChromeLabs/text-editor/blob/main/src/inline-scripts/menu-recent.js */
@@ -165,7 +268,7 @@
       /*
        * File handles can be serialized, but only to IndexDB. Localstorage is not supported.
        */
-      addRecent: async function(fileHandle) {
+      addRecent: async function (fileHandle) {
         let recentFiles = (await idbKeyval.get('recentFiles')) || [];
 
         // If isSameEntry isn't available, we can't store the file handle
@@ -205,11 +308,11 @@
 
     // Allow indexdb to be disabled
     if (window.location.hash.search("norecent") >= 0) {
-      const noop = async () => {return []};
+      const noop = async () => { return [] };
       twFileManager.addRecent = noop;
       twFileManager.getRecent = noop;
     }
-    
+
     // Prevent errors if the browser doesn't support file system api
     if (!window.showOpenFilePicker) {
       twFileManager.openFile = async () => {
@@ -218,7 +321,7 @@
       }
     }
     if (!window.showSaveFilePicker) {
-      setTwCustomSaveAsSaver = () => {}
+      setTwCustomSaveAsSaver = () => { }
     }
 
     function replacePageContents(contents) {
@@ -269,11 +372,11 @@
               const list = document.createElement('ul');
               for (const recent of recentFiles) {
                 const li = document.createElement('li'),
-                      button = Object.assign(document.createElement('button'), {
-                        type: 'button',
-                        onclick: openFile.bind(null, recent),
-                        innerText: recent.name
-                      });
+                  button = Object.assign(document.createElement('button'), {
+                    type: 'button',
+                    onclick: openFile.bind(null, recent),
+                    innerText: recent.name
+                  });
                 li.appendChild(button);
                 list.appendChild(li);
               }
@@ -289,47 +392,35 @@
           })
       }
     }
+
+
+    // Miao新建的元素自适应窗口高度
+
+    function Dimensions() //函数：获取尺寸
+    {
+      var winHeight;
+      var height;
+      //获取窗口高度
+      if (window.innerHeight)
+        height = window.innerHeight;
+      else if ((document.body) && (document.body.clientHeight))
+        height = document.body.clientHeight;
+      winHeight = height - 16 + 'px';
+      console.trace("result:" + winHeight)
+      document.getElementById("aside-000").style.height = winHeight;
+    }
+
     window.onload = () => {
+      //打开页面先进行函数执行
       displayBrowserSupportMessage();
       displayRecentFiles();
+      Dimensions();
+      window.onresize = function () {
+        window.location.reload();
+        Dimensions();//窗口改变执行函数
+      }
     }
   </script>
-</head>
-<body>
-    <div>
-      <h1>TiddlyStow</h1>
-      <p>这个简单的页面用于加载本地<a href="https://tiddlywiki.com">TiddlyWiki太微</a>程序文件。并将其保存到相同的本地文件中。</p>
-      <ul>
-        <li>在这里打开任何文件之前，请确保有一个备份!</li>
-        <li>一定要经常备份你的文件!</li>
-        <li>
-          并不是所有的浏览器都 <a href="https://caniuse.com/native-filesystem-api">支持本地文件特性</a>.
-          <span id="support-message"></span>
-        </li>
-        <li>仅适用于单个TiddlyWiki文件实例。</li>
-        <li>不喜欢在浏览器存储中保存最近的文件列表？点击 <a href="#norecent">这里</a> 并刷新页面。</li>
-        <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a> 是一个类似的项目，但有更多的功能，并捆绑为TiddlyWiki插件。</li>
-        <li>源代码可在 <a href="https://github.com/btheado/tiddlystow">Github</a> 或者在浏览器中使用“查看页面源代码”。</li>
-        <li>加载Tiddlywiki文件后，刷新页面返回到文件选择器。</li>
-      </ul>
-      </p>
-      <br>
-      <button type="button" onclick="openFile()">从本地打开现有的文件...</button>
-      
-      <div id="recent-files"></div><br>
-      
-      
-      
-      <div>
-      从远程url打开新的wiki:
-      <ul>
-        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
-        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease')">tiddlywiki.com/prerelease</button></li>
-      </ul>
-      </div>
-      
-      
-      
-    </div>
 </body>
+
 </html>
