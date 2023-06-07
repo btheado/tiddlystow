@@ -8,14 +8,14 @@
   <link rel="shortcut icon" type="images/x-icon" href="https://btheado.github.io/tiddlystow/favicon.ico">
 
 
-  <!-- Miao新建的新的布局UI样式表 -->
+  <!-- WhiteFall新建的新的布局UI样式表 -->
   <style type="text/css">
     .aside {
       background-color: #566d97;
       color: whitesmoke;
       text-align: center;
       width: 150px;
-      min-height: 545px;
+      min-height: 600px;
     }
 
     .container.is-vertical {
@@ -51,25 +51,27 @@
       <div class="scrollbar">
         <p class="aside-title">从远程url打开新的wiki</p>
 
-        <button class="sub-menu-button" type="button"
-          onclick="openFromUrl('https://twpub-book.vercel.app/empty-zh-5.2.3.html')">空白版TiddlyWiki-5.2.3</button>
-        <button class="sub-menu-button" type="button"
-          onclick="openFromUrl('https://twpub-book.vercel.app/TidGi_v0.7.7.html')">TidGi单文件版5.2.3</button>
-        <button class="sub-menu-button" type="button"
-          onclick="openFromUrl('https://twpub-book.vercel.app/tiddlywiki-xp_Plugins.html')">TiddlyWiki-XP单文件版</button>
-        <button class="sub-menu-button" type="button"
-          onclick="openFromUrl('https://twpub-book.vercel.app/TiddlyMemo墨屉.html')">TiddlyMemo墨屉</button>
-        <button class="sub-menu-button" type="button"
-          onclick="openFromUrl('https://sugarhope-com.github.io/MTproject/')">MTproject规划&复习模板</button>
+        <button class="sub-menu-button" type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">empty.html</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://tidgi.fun/')">TidGi官网</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://github.com/tiddly-gittly/TidGi-Desktop/releases')">TidGi-Github-Releases</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://github.com/TiddlyWiki/TiddlyDesktop/releases')">TiddlyDesktop软件发布页</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://tiddlymemo.org/manual/zh-Hans')">墨屉中文手册主页</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://tw-cn.netlify.app')">太微中文教程</button>
+        <button class="sub-menu-button" type="button" onclick="window.open('https://tw-cpl.netlify.app/')">TW5中文社区插件源</button>
+
 
       </div>
     </aside>
     <div class="container is-vertical">
       <main class="main">
-
-
+        
+        
+        
         <h1>TiddlyStow</h1>
-        <p>这个简单的页面用于加载本地<a href="https://tiddlywiki.com/">TiddlyWiki太微</a>程序文件。并将其保存到相同的本地文件中。</p>
+        <p>这个简单的页面用于加载本地<a href="https://tiddlywiki.com/">TiddlyWiki太微</a>程序文件（一个HTML文件），并将其保存到相同的本地文件中。</p>
+        <p>TiddlyStow可以作为<a href="https://tw-cn.netlify.app/#开始%3A桌面端浏览器中的太微">在桌面浏览器中使用TiddlyWiki</a>的起点，你可以使用侧边栏中的模板创建TiddlyWiki文档。其它三个组件分别为<a href="https://ibnishak.github.io/Timimi/">Timimi</a>（保存与备份）、FSA Uploader（自动上传图片到本地文件夹）、kopia（定时备份）；在没有任何用于保存TiddlyWiki的工具的情况下，点击TiddlyWiki中的保存变更按钮你的浏览器将下载一份更新后的TiddlyWiki。</p>
+        <p>你可以把创建的TiddlyWiki当做在任意位置可以阅读但只能在电脑上使用浏览器修改的Word文档使用。</p>
+        
         <ul>
           <li>在这里打开任何文件之前，请确保有一个备份!</li>
           <li>一定要经常备份你的文件!</li>
@@ -77,13 +79,16 @@
             并不是所有的浏览器都 <a href="https://caniuse.com/native-filesystem-api">支持本地文件特性</a>.
             <span id="support-message"><b>好消息！你的浏览器支持它。</b></span>
           </li>
+          <li>可用的桌面浏览器：Edge/Chrome版本大于86，Safari版本大于15.2，Opera版本大于72。</li>
+          <li>创建的太微文档可以使用TidGi的导入Wiki.HTML功能导入到TidGi（太记）中使用。</li>
+          <li>你也可以把创建的tiddlywiki.html文档放入安卓的<a href="https://github.com/donmor/Tiddloid/releases">tiddloid</a>中使用。</li>
           <li>仅适用于单个TiddlyWiki文件实例。</li>
-          <li>不喜欢在浏览器存储中保存最近的文件列表？点击 <a href="https://twpub-book.vercel.app/tiddlystow.html#norecent">这里</a> 并刷新页面。</li>
+          <li>不喜欢在浏览器存储中保存最近的文件列表？点击 <a href="tiddlystow.html#norecent">这里</a> 并刷新页面。</li>
           <li><a href="https://github.com/slaymaker1907/TW5-browser-nativesaver">TW5 browser nativesaver</a>
             是一个类似的项目，但有更多的功能，并捆绑为TiddlyWiki插件。</li>
-          <li>源代码可在 <a href="https://github.com/btheado/tiddlystow">Github</a> 或者在浏览器中使用“查看页面源代码”。</li>
+          <li>源代码可在 <a href="https://github.com/tiddly-gittly/TWPUB-BOOK">Github</a> 或者在浏览器中使用“查看页面源代码”。</li>
           <li>加载Tiddlywiki文件后，刷新页面返回到文件选择器。</li>
-          <li>从远程URL加载新的Tiddlywiki文件，需要一点时间下载文件，请耐心等待几秒。</li>
+          <li><b><span style='color:#70AD47'>从远程URL加载新的Tiddlywiki文件，需要一点时间下载文件，请耐心等待几秒。</span></b></li>
         </ul>
 
 
@@ -258,9 +263,13 @@
       },
 
       openFromUrl: async function (url) {
+        /*不同网站支持的访问策略不一样：vercel.app可以没有"access-control-allow-origin: *"
+        netlify.app一定要设定这个属性，不然不让访问。*/
+        
         const contents = await fetch(url).then(res => res.text());
         setTwCustomSaveAsSaver();
         return { contents };
+        
       },
 
       /* This code modified from https://github.com/GoogleChromeLabs/text-editor/blob/main/src/inline-scripts/menu-recent.js */
@@ -406,7 +415,6 @@
       else if ((document.body) && (document.body.clientHeight))
         height = document.body.clientHeight;
       winHeight = height - 16 + 'px';
-      console.trace("result:" + winHeight)
       document.getElementById("aside-000").style.height = winHeight;
     }
 
