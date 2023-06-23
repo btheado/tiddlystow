@@ -124,7 +124,10 @@
         } else {
            // writeTw function is empty, so prompt the user for file handle
            // and create the writeTw function
-          window.showSaveFilePicker()
+          window.showSaveFilePicker({
+                suggestedName: 'Note.html',
+                types: [{ accept: { "text/html": [".html"] } }]
+            })
             .then(fileHandle => {
               writeTw = createTwCustomSaver(fileHandle);
               writeTw(text, method, callback);
@@ -155,9 +158,46 @@
       },
 
       openFromUrl: async function(url) {
-        const contents = await fetch(url).then(res => res.text());
+        // display fetch progress
+        const { headers, body } = await fetch(url);
+        const blob = await new Promise((resolve, reject) => {
+            const total = +headers.get('content-length');
+            let loaded = 0;
+            let chunks = [];
+            const reader = body.getReader();
+            !function pump() {
+                reader.read().then(({ value, done }) => {
+                    if (done) {
+                        resolve(new Blob(chunks));
+                        return;
+                    }
+                    loaded += value.length;
+                    chunks.push(value);
+                    document.querySelector('#fetch-progress').value = 1e2 * loaded / total;
+                    pump();
+                }).catch(reject);
+            }();
+        });
+        const contents = await blob.text();
         setTwCustomSaveAsSaver();
         return {contents};
+      },
+
+      openFromTemplate: async function(fileHandle) {
+        if (fileHandle) {
+          // fileHandle may have come from indexDB in which case permission must be re-queried
+          const options = {mode: 'read'};
+          if ((await fileHandle.queryPermission(options)) !== 'granted') {
+            await fileHandle.requestPermission(options);
+          }
+        } else {
+          // No fileHandle given. Prompt user to choose one from disk
+          [fileHandle] = await window.showOpenFilePicker();
+        }
+        const file = await fileHandle.getFile();
+        const contents = await file.text();
+        setTwCustomSaveAsSaver();
+        return {fileHandle, contents};
       },
 
       /* This code modified from https://github.com/GoogleChromeLabs/text-editor/blob/main/src/inline-scripts/menu-recent.js */
@@ -241,6 +281,11 @@
       replacePageContents(file.contents);
       return file;
     }
+    window.openFromTemplate = async function (fileHandle) {
+      const file = await twFileManager.openFromTemplate(fileHandle);
+      replacePageContents(file.contents);
+      return file;
+    }
 
     function displayBrowserSupportMessage() {
       const elem = document.getElementById("support-message");
@@ -298,6 +343,10 @@
 <body>
     <div>
       <h1>TiddlyStow</h1>
+      <select onchange="window.open(this.options[this.selectedIndex].value,'_self')">
+        <option value="./">English</option>
+        <option value="./TiddlyStow-ZH.html">中文(简体)</option>
+      </select>
       <p>This simple page is a helper for loading a local <a href="https://tiddlywiki.com">TiddlyWiki</a>
       file and storing it back to the same local file.</p>
       <ul>
@@ -319,11 +368,13 @@
       <div id="recent-files"></div>
       <div>
       Open new from a remote url:
+      <progress id="fetch-progress" max="100" value="0"></progress>
       <ul>
         <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
         <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html')">tiddlywiki.com/prerelease/empty.html</button></li>
       </ul>
       </div>
+      <button type="button" onclick="openFromTemplate()">open new from a local template file...</button>
     </div>
 </body>
 </html>
