@@ -4,9 +4,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open('tiddlystow-001').then((cache) => {
       return cache.addAll([
-        '/',
-        '/index.html',
-        '/TiddlyStow-ZH.html',
+        './',
+        'index.html',
+        'TiddlyStow-ZH.html',
         'manifest.json',
         'favicon.ico',
         'android-chrome-192x192.png',
