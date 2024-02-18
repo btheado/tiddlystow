@@ -1,3 +1,4 @@
+// TODO: fail the service worker installation if OPFS is not supported?
 function getOptionsResponse() {
     // These verbs will eventually be supported.
     // For a real WEBDAV server, the dav header will have value like "1,2", but
@@ -15,13 +16,11 @@ function getOptionsResponse() {
     });
     return response;
 }
-async function getFileFromOpfs(fileName) {
-  // TODO: use a subdirectory based on the scope of the service worker to ensure there are no
-  // conflicts with other uses of opfs on the same domain
-  const opfsRoot = await navigator.storage.getDirectory();
+async function getFileFromOpfs(basePath, fileName) {
   try {
     // Create a 200 response from the contents of the file handle
-    const fileHandle = await opfsRoot.getFileHandle(fileName),
+    const dir = await getBaseDirHandle(basePath);
+    const fileHandle = await dir.getFileHandle(fileName),
       file = await fileHandle.getFile(),
       contents = await file.text();
     return new Response(contents, {headers: new Headers({"Content-Type": "text/html"})});
@@ -87,9 +86,10 @@ async function getFileFromOpfs(fileName) {
   }
 }
 // TODO: How to handle requesting eviction protection permission? I doubt service worker is allowed to make such a request
-async function saveFileToOpfs(fileName, request) {
-  const opfsRoot = await navigator.storage.getDirectory(),
-    fileHandle = await opfsRoot.getFileHandle(fileName, {create: true}),
+// TODO: error handling
+async function saveFileToOpfs(basePath, fileName, request) {
+  const dir = await getBaseDirHandle(basePath),
+    fileHandle = await dir.getFileHandle(fileName, {create: true}),
     writable = await fileHandle.createWritable(),
     content = await request.text();
   await writable.write(content);
@@ -99,12 +99,10 @@ async function saveFileToOpfs(fileName, request) {
     statusText: 'OK'
   });
 }
-async function deleteFileFromOpfs(fileName) {
-  // TODO: use a subdirectory based on the scope of the service worker to ensure there are no
-  // conflicts with other uses of opfs on the same domain
-  const opfsRoot = await navigator.storage.getDirectory();
+async function deleteFileFromOpfs(basePath, fileName) {
   try {
-    await opfsRoot.removeEntry(fileName);
+    const dir = await getBaseDirHandle(basePath);
+    await dir.removeEntry(fileName);
     return new Response(null, {status: 204, statusText: "No Content"});
   } catch (error) {
     if (error.name === 'NotFoundError') {
@@ -124,10 +122,11 @@ async function deleteFileFromOpfs(fileName) {
     }
   }
 }
-async function listOpfsDirectory(request) {
-  const opfsRoot = await navigator.storage.getDirectory(),
+// TODO: error handling
+async function listOpfsDirectory(basePath, request) {
+  const dir = await getBaseDirHandle(basePath),
     fileNames = [];
-  for await (const key of opfsRoot.keys()) {
+  for await (const key of dir.keys()) {
     fileNames.push(key);
   }
   const html = `
@@ -174,6 +173,12 @@ async function listOpfsDirectory(request) {
   `;
   return new Response(html, {headers: new Headers({"Content-Type": "text/html"})});
 }
+// Use a subdirectory off the opfs root. The name of the subdir is derived
+// from the scope of the service worker. i.e. 'sw-saver' => 'sw-saver#w'
+async function getBaseDirHandle(basePath) {
+  const opfsRoot = await navigator.storage.getDirectory();
+  return await opfsRoot.getDirectoryHandle((basePath.split('/') + ['w'].join('#')), {create: true});
+}
 self.addEventListener('fetch', event => {
   const { request } = event;
   const { method, url } = request;
@@ -210,14 +215,14 @@ self.addEventListener('fetch', event => {
 
     // TODO: HEAD request support
     if (method === 'GET') {
-      event.respondWith(getFileFromOpfs(fileName));
+      event.respondWith(getFileFromOpfs(scopePathname, fileName));
     } else if (method === 'PUT') {
-      event.respondWith(saveFileToOpfs(fileName, request));
+      event.respondWith(saveFileToOpfs(scopePathname, fileName, request));
     } else if (method === 'DELETE') {
-      event.respondWith(deleteFileFromOpfs(fileName));
+      event.respondWith(deleteFileFromOpfs(scopePathname, fileName));
     }
   } else {
-    event.respondWith(listOpfsDirectory(request));
+    event.respondWith(listOpfsDirectory(scopePathname, request));
   }
 });
 
