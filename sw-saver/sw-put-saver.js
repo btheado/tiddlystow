@@ -1,6 +1,5 @@
 // TODO: fail the service worker installation if OPFS is not supported?
 function getOptionsResponse() {
-    // These verbs will eventually be supported.
     // For a real WEBDAV server, the dav header will have value like "1,2", but
     // the TiddlyWiki PUT saver only checks for presence of the header and doesn't
     // care about the value.
@@ -16,14 +15,14 @@ function getOptionsResponse() {
     });
     return response;
 }
-async function getFileFromOpfs(basePath, fileName) {
+async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
   try {
     // Create a 200 response from the contents of the file handle
     const dir = await getBaseDirHandle(basePath);
     const fileHandle = await dir.getFileHandle(fileName),
       file = await fileHandle.getFile(),
       contents = await file.text();
-    return new Response(contents, {headers: new Headers({"Content-Type": "text/html"})});
+    return new Response(headersOnly ? null : contents, {headers: new Headers({"Content-Type": "text/html"})});
   } catch (error) {
     if (error.name === 'NotFoundError') {
       // TODO: only do this for .html suffix. Return a plain 404 otherwise
@@ -213,13 +212,14 @@ self.addEventListener('fetch', event => {
   if (pathParts.length === 2) {
     const fileName = pathParts[1];
 
-    // TODO: HEAD request support
     if (method === 'GET') {
       event.respondWith(getFileFromOpfs(scopePathname, fileName));
     } else if (method === 'PUT') {
       event.respondWith(saveFileToOpfs(scopePathname, fileName, request));
     } else if (method === 'DELETE') {
       event.respondWith(deleteFileFromOpfs(scopePathname, fileName));
+    } else if (method === 'HEAD') {
+      event.respondWith(getFileFromOpfs(scopePathname, fileName, headersOnly=true));
     }
   } else {
     event.respondWith(listOpfsDirectory(scopePathname, request));
