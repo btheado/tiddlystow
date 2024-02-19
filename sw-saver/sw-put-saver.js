@@ -21,14 +21,18 @@ async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
     const dir = await getBaseDirHandle(basePath);
     const fileHandle = await dir.getFileHandle(fileName),
       file = await fileHandle.getFile(),
+      // TODO: does file.arrayBuffer() need to be used for non-text data?
       contents = await file.text();
+    // TODO: Give Content-Length header using file.size
+    // TODO: Use file extension to return different Content-Type for if something like file uploader plugin is used
+    // or does file.type() have the type in it already? Looks like it does at least for text/html and image/png.
+    //console.log("size:", file.size, "type:", file.type);
     return new Response(headersOnly ? null : contents, {headers: new Headers({"Content-Type": "text/html"})});
   } catch (error) {
     if (error.name === 'NotFoundError') {
       // TODO: only do this for .html suffix. Return a plain 404 otherwise
       // Return an html page which allows wiki to be uploaded or fetched from url
       // the page will be replaced with the wiki and the put saver will takeover from there
-      // TODO: provide a button to download/export all opfs files
       const html = `
         <html>
         <head>
@@ -128,6 +132,9 @@ async function listOpfsDirectory(basePath, request) {
   for await (const key of dir.keys()) {
     fileNames.push(key);
   }
+  // TODO: provide a button to download/export all opfs files. Probably best to implement it as a
+  // service worker endpoint whose GET method returns a zip file of the contents. That way the
+  // UI doesn't know about opfs...all opfs access is on the "server" side of the service worker.
   const html = `
     <html>
     <head>
