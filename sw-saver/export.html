@@ -1,0 +1,35 @@
+<html>
+<head><title>Export opfs as a zip download</title></head>
+<script type="module">
+import * as zip from 'https://esm.run/@zip.js/zip.js';
+
+// From https://aweirdimagination.net/2023/12/31/zip-web-app-local-data/
+async function zipDirectory(dir) {
+  const zipFs = new zip.fs.FS();
+  await zipFs.root.addFileSystemHandle(dir);
+  return await zipFs.exportBlob();
+}
+
+// Modified from https://aweirdimagination.net/2023/12/24/keeping-web-app-data-local/ 
+function downloadBlob(filename, blob, mimeType) {
+  const element = document.createElement("a");
+  const url = URL.createObjectURL(blob,
+                                  { type: mimeType });
+  element.setAttribute("href", url);
+  element.setAttribute("download", filename);
+  element.click();
+  URL.revokeObjectURL(url);
+}
+async function downloadOpfsAsZip() {
+  const dir = await navigator.storage.getDirectory();
+  const zipBlob = await zipDirectory(dir);
+  downloadBlob("opfs-export.zip",
+    zipBlob,
+    "application/octet-stream");
+}
+window.downloadOpfsAsZip = downloadOpfsAsZip;
+</script>
+<body>
+<button onclick="downloadOpfsAsZip()">Download opfs files as zip</button>
+</body>
+</html>
