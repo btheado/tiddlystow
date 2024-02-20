@@ -21,13 +21,11 @@ async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
     const dir = await getBaseDirHandle(basePath);
     const fileHandle = await dir.getFileHandle(fileName),
       file = await fileHandle.getFile(),
-      // TODO: does file.arrayBuffer() need to be used for non-text data?
-      contents = await file.text();
-    // TODO: Give Content-Length header using file.size
-    // TODO: Use file extension to return different Content-Type for if something like file uploader plugin is used
-    // or does file.type() have the type in it already? Looks like it does at least for text/html and image/png.
-    //console.log("size:", file.size, "type:", file.type);
-    return new Response(headersOnly ? null : contents, {headers: new Headers({"Content-Type": "text/html"})});
+      contents = file.type.startsWith('text/') ? await file.text() : await file.arrayBuffer();
+    return new Response(headersOnly ? null : contents, {headers: new Headers({
+      "Content-Type": file.type ? file.type : "text/html",
+      "Content-Length": file.size
+    })});
   } catch (error) {
     if (error.name === 'NotFoundError') {
       // TODO: only do this for .html suffix. Return a plain 404 otherwise
@@ -94,7 +92,8 @@ async function saveFileToOpfs(basePath, fileName, request) {
   const dir = await getBaseDirHandle(basePath),
     fileHandle = await dir.getFileHandle(fileName, {create: true}),
     writable = await fileHandle.createWritable(),
-    content = await request.text();
+    contentType = request.headers.get('Content-Type'),
+    content = (contentType && contentType.includes('text/')) ? await request.text() : await request.arrayBuffer();
   await writable.write(content);
   await writable.close();
   return new Response(null, {
