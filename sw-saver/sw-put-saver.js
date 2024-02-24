@@ -15,6 +15,47 @@ function getOptionsResponse() {
     });
     return response;
 }
+function getWikiCreatorHtml(fileName) {
+  return `
+    <html>
+    <head>
+      <title>Create new Tiddlywiki file</title>
+      <script type="module">
+        function replacePageContents(contents) {
+          if (contents) {
+            document.open();
+            document.write(contents);
+            document.close();
+          }
+        }
+        window.openFromUrl = async function (url) {
+          // TODO: error handling
+          const contents = await fetch(url).then(res => res.text());
+          replacePageContents(contents);
+        }
+        window.openFromUpload = function (event) {
+          const file = event.target.files[0];
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            replacePageContents(event.target.result);
+          };
+          reader.readAsText(file);
+        }
+      </script>
+    </head>
+    <body>
+      <p>File '${fileName}' doesn't exist.</p>
+      <p>Create from a remote url?</p>
+      <ul>
+        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
+        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html')">tiddlywiki.com/prerelease</button></li>
+      </ul>
+      <p>Upload file into the browser?</p>
+      <input type="file" id="fileInput" accept=".html" onchange="openFromUpload(event)">
+    </body>
+    </html>
+  `;
+}
 async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
   try {
     // Create a 200 response from the contents of the file handle
@@ -31,46 +72,7 @@ async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
       // TODO: only do this for .html suffix. Return a plain 404 otherwise
       // Return an html page which allows wiki to be uploaded or fetched from url
       // the page will be replaced with the wiki and the put saver will takeover from there
-      const html = `
-        <html>
-        <head>
-          <title>Create new Tiddlywiki file</title>
-          <script type="module">
-            function replacePageContents(contents) {
-              if (contents) {
-                document.open();
-                document.write(contents);
-                document.close();
-              }
-            }
-            window.openFromUrl = async function (url) {
-              // TODO: error handling
-              const contents = await fetch(url).then(res => res.text());
-              replacePageContents(contents);
-            }
-            window.openFromUpload = function (event) {
-              const file = event.target.files[0];
-              const reader = new FileReader();
-              reader.onload = function(event) {
-                replacePageContents(event.target.result);
-              };
-              reader.readAsText(file);
-            }
-          </script>
-        </head>
-        <body>
-          <p>File '${fileName}' doesn't exist.</p>
-          <p>Create from a remote url?</p>
-          <ul>
-            <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
-            <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html')">tiddlywiki.com/prerelease</button></li>
-          </ul>
-          <p>Upload file into the browser?</p>
-          <input type="file" id="fileInput" accept=".html" onchange="openFromUpload(event)">
-        </body>
-        </html>
-      `;
-      return new Response(html, {
+      return new Response(getWikiCreatorHtml(fileName), {
         status: 404,
         statusText: "File not found",
         headers: new Headers({"Content-Type": "text/html"})
