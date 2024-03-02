@@ -173,6 +173,9 @@ function getDirectoryListHtml(baseUrl, files) {
     </html>
   `;
 }
+function getDirectoryListJson(files) {
+  return files.map(file => ({kind: file.kind, name: file.name}))
+}
 // TODO: error handling
 async function listOpfsDirectory(basePath, request) {
   const dir = await getBaseDirHandle(basePath),
@@ -180,8 +183,14 @@ async function listOpfsDirectory(basePath, request) {
   for await (const file of dir.values()) {
     files.push(file);
   }
-  const html = getDirectoryListHtml(request.url, files);
-  return new Response(html, {headers: new Headers({"Content-Type": "text/html"})});
+  const acceptHeader = request.headers.get("Accept");
+  if (acceptHeader && acceptHeader.includes("application/json")) {
+    const json = JSON.stringify(getDirectoryListJson(files));
+    return new Response(json, {headers: new Headers({"Content-Type": "application/json"})});
+  } else {
+    const html = getDirectoryListHtml(request.url, files);
+    return new Response(html, {headers: new Headers({"Content-Type": "text/html"})});
+  }
 }
 // Use a subdirectory off the opfs root. The name of the subdir is derived
 // from the scope of the service worker. i.e. 'sw-saver' => 'sw-saver#w'
