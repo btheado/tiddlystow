@@ -126,7 +126,7 @@ async function deleteFileFromOpfs(basePath, fileName) {
     }
   }
 }
-function getDirectoryListHtml(baseUrl, fileNames) {
+function getDirectoryListHtml(baseUrl, files) {
   // TODO: provide a button to download/export all opfs files. Probably best to implement it as a
   // service worker endpoint whose GET method returns a zip file of the contents. That way the
   // UI doesn't know about opfs...all opfs access is on the "server" side of the service worker.
@@ -140,10 +140,10 @@ function getDirectoryListHtml(baseUrl, fileNames) {
       <button onclick="navigateToURL()">Go</button>
       <p>Files in this directory</p>
       <ul>
-        ${fileNames.map(f => `
+        ${files.map(f => `
           <li>
-            <a href="${baseUrl}${f}">${f}</a>
-            <button onclick="deleteFile('${baseUrl}${f}')">Delete</button>
+            <a href="${baseUrl}${f.name}">${f.name}</a>
+            <button onclick="deleteFile('${baseUrl}${f.name}')">Delete</button>
           </li>`).join("\n")}
       </ul>
       <script>
@@ -176,11 +176,11 @@ function getDirectoryListHtml(baseUrl, fileNames) {
 // TODO: error handling
 async function listOpfsDirectory(basePath, request) {
   const dir = await getBaseDirHandle(basePath),
-    fileNames = [];
-  for await (const key of dir.keys()) {
-    fileNames.push(key);
+    files = [];
+  for await (const file of dir.values()) {
+    files.push(file);
   }
-  const html = getDirectoryListHtml(request.url, fileNames);
+  const html = getDirectoryListHtml(request.url, files);
   return new Response(html, {headers: new Headers({"Content-Type": "text/html"})});
 }
 // Use a subdirectory off the opfs root. The name of the subdir is derived
