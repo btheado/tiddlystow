@@ -21,25 +21,38 @@ function getWikiCreatorHtml(fileName) {
     <head>
       <title>Create new Tiddlywiki file</title>
       <script type="module">
-        function replacePageContents(contents) {
+        async function saveAndReload(contents, type, size) {
           if (contents) {
-            document.open();
-            document.write(contents);
-            document.close();
+            await fetch(window.location.href, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': type,
+                'Content-Length': size
+              },
+              body: contents
+            });
+            window.location.reload();
           }
         }
         window.openFromUrl = async function (url) {
           // TODO: error handling
           const contents = await fetch(url).then(res => res.text());
-          replacePageContents(contents);
+          saveAndReload(contents, "text/html", contents.length)
         }
+        // Hmm, it would be best to use file.name to store the file? That
+        // way the file extension gets picked up automatically? Because it
+        // seems the file extension is what is used when reading opfs file to get the mime type?
+        // But it might be common to want to upload the same file as a template for multiple
+        // different opfs files. In fact for TW files, I would think that would be the common case.
+        // For static files I think using the file name would be the common case.
         window.openFromUpload = function (event) {
           const file = event.target.files[0];
           const reader = new FileReader();
-          reader.onload = function(event) {
-            replacePageContents(event.target.result);
+          reader.onload = async function(event) {
+            saveAndReload(event.target.result, file.type, file.size);
           };
-          reader.readAsText(file);
+          // Array buffer works for both png and html files to pass to fetch
+          reader.readAsArrayBuffer(file);
         }
       </script>
     </head>
@@ -51,7 +64,7 @@ function getWikiCreatorHtml(fileName) {
         <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html')">tiddlywiki.com/prerelease</button></li>
       </ul>
       <p>Upload file into the browser?</p>
-      <input type="file" id="fileInput" accept=".html" onchange="openFromUpload(event)">
+      <input type="file" id="fileInput" onchange="openFromUpload(event)">
     </body>
     </html>
   `;
@@ -152,7 +165,7 @@ function getDirectoryListHtml(baseUrl, files) {
           if (userInput !== "") {
             // Navigate to the file creation page for this wiki
             // TODO: url encoding userInput
-            window.location.href = userInput + ".html";
+            window.location.href = userInput; // + ".html";
           }
         }
         function deleteFile(url) {
@@ -201,6 +214,9 @@ async function getBaseDirHandle(basePath) {
 self.addEventListener('fetch', event => {
   const { request } = event;
   const { method, url } = request;
+
+  //navigator.storage.persisted() is available in service worker, but requesting the permission is not
+  //console.log(navigator.storage);
 
   if (method === 'OPTIONS') {
     event.respondWith(getOptionsResponse());
