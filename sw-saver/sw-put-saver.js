@@ -233,11 +233,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const { method, url } = request;
 
-  if (method === 'OPTIONS') {
-    event.respondWith(handleOptions());
-    return;
-  }
-
   const scopeUrl = new URL(self.registration.scope);
   const requestUrl = new URL(url);
 
@@ -274,6 +269,8 @@ self.addEventListener('fetch', (event) => {
           return handleDeleteFile(baseDirHandle, fileName);
         case 'HEAD':
           return handleGetFile(baseDirHandle, fileName, true);
+        case 'OPTIONS':
+          return handleOptions();
         default:
           return createResponse(`Method ${method} not allowed`, {
             status: 405,
