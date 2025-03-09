@@ -1,20 +1,31 @@
-// TODO: fail the service worker installation if OPFS is not supported?
-function getOptionsResponse() {
-    // For a real WEBDAV server, the dav header will have value like "1,2", but
-    // the TiddlyWiki PUT saver only checks for presence of the header and doesn't
-    // care about the value.
-    const headers = new Headers({
-      'dav': '0',
-      'Allow': 'OPTIONS, GET, HEAD, DELETE, PUT'
-    });
+// Constants and configuration
+const SUPPORTED_METHODS = ['OPTIONS', 'GET', 'HEAD', 'DELETE', 'PUT'];
+const BASE_DIR_SUFFIX = 'w';
+const OPFS_PREFIX = BASE_DIR_SUFFIX + '/';
 
-    // Send the headers in a 200 OK response
-    const response = new Response(null, {
-      status: 200,
-      headers: headers
-    });
-    return response;
-}
+// Helper functions
+const getOpfsBaseDirHandle = async (basePath) => {
+  const opfsRoot = await navigator.storage.getDirectory();
+  const dir = basePath.replace(/\/$/,'').split('/').concat(BASE_DIR_SUFFIX).join('#');
+  return opfsRoot.getDirectoryHandle(dir, { create: true });
+};
+
+const createResponse = (body, options = {}) => {
+  const { status = 200, statusText = 'OK', headers = {} } = options;
+  return new Response(body, { status, statusText, headers: new Headers(headers) });
+};
+
+// TODO: fail the service worker installation if OPFS is not supported?
+const handleOptions = () => createResponse(null, {
+  // For a real WEBDAV server, the dav header will have value like "1,2", but
+  // the TiddlyWiki PUT saver only checks for presence of the header and doesn't
+  // care about the value.
+  headers: {
+    'dav': '0',
+    'Allow': SUPPORTED_METHODS.join(', ')
+  }
+});
+
 function getWikiCreatorHtml(fileName) {
   return `
     <html>
@@ -69,76 +80,81 @@ function getWikiCreatorHtml(fileName) {
     </html>
   `;
 }
-async function getFileFromOpfs(basePath, fileName, headersOnly=false) {
+
+const handleGetFile = async (dirHandle, fileName, headersOnly = false) => {
   try {
+    const fileHandle = await dirHandle.getFileHandle(fileName);
+    const file = await fileHandle.getFile();
+    const contents = headersOnly ? null :
+      (file.type.startsWith('text/') ? await file.text() : await file.arrayBuffer());
+
     // Create a 200 response from the contents of the file handle
-    const dir = await getBaseDirHandle(basePath);
-    const fileHandle = await dir.getFileHandle(fileName),
-      file = await fileHandle.getFile(),
-      contents = file.type.startsWith('text/') ? await file.text() : await file.arrayBuffer();
-    return new Response(headersOnly ? null : contents, {headers: new Headers({
-      "Content-Type": file.type ? file.type : "text/html",
-      "Content-Length": file.size
-    })});
+    return createResponse(contents, {
+      headers: {
+        "Content-Type": file.type || "text/html",
+        "Content-Length": file.size
+      }
+    });
   } catch (error) {
     if (error.name === 'NotFoundError') {
-      // TODO: only do this for .html suffix. Return a plain 404 otherwise
+      // TODO: only do this for .html suffix. Return a plain 404 otherwise?
       // Return an html page which allows wiki to be uploaded or fetched from url
       // the page will be replaced with the wiki and the put saver will takeover from there
-      return new Response(getWikiCreatorHtml(fileName), {
+      return createResponse(getWikiCreatorHtml(fileName), {
         status: 404,
         statusText: "File not found",
-        headers: new Headers({"Content-Type": "text/html"})
-      });
-    } else {
-      // Handle other errors
-      console.error('Error accessing file:', error);
-      return new Response(`Error accessing file '${fileName}: ${error}'.`, {
-        status: 500,
-        statusText: 'Internal Server Error',
-        headers: {'Content-Type': 'text/plain'}
+        headers: { "Content-Type": "text/html" }
       });
     }
+    // Handle other errors
+    console.error('Error accessing file:', error);
+    return createResponse(`Error accessing file '${fileName}: ${error}'.`, {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
-}
+};
 // TODO: How to handle requesting eviction protection permission? I doubt service worker is allowed to make such a request
-// TODO: error handling
-async function saveFileToOpfs(basePath, fileName, request) {
-  const dir = await getBaseDirHandle(basePath),
-    fileHandle = await dir.getFileHandle(fileName, {create: true}),
-    writable = await fileHandle.createWritable(),
-    contentType = request.headers.get('Content-Type'),
-    content = (contentType && contentType.includes('text/')) ? await request.text() : await request.arrayBuffer();
-  await writable.write(content);
-  await writable.close();
-  return new Response(null, {
-    status: 200,
-    statusText: 'OK'
-  });
-}
-async function deleteFileFromOpfs(basePath, fileName) {
+const handlePutFile = async (dirHandle, fileName, request) => {
   try {
-    const dir = await getBaseDirHandle(basePath);
-    await dir.removeEntry(fileName);
-    return new Response(null, {status: 204, statusText: "No Content"});
+    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+    const writable = await fileHandle.createWritable();
+    const contentType = request.headers.get('Content-Type');
+    const content = contentType?.includes('text/') ? await request.text() : await request.arrayBuffer();
+
+    await writable.write(content);
+    await writable.close();
+    return createResponse(null, { status: 200 });
+  } catch (error) {
+    console.error('Error saving file:', error);
+    return createResponse(`Error saving file '${fileName}: ${error}'.`, {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+};
+const handleDeleteFile = async (dirHandle, fileName) => {
+  try {
+    await dirHandle.removeEntry(fileName);
+    return createResponse(null, { status: 204, statusText: "No Content" });
   } catch (error) {
     if (error.name === 'NotFoundError') {
-      return new Response(`Could not delete file '${fileName}'. File not found.`, {
+      return createResponse(`Could not delete file '${fileName}'. File not found.`, {
         status: 404,
         statusText: "File not found",
-        headers: new Headers({"Content-Type": "text/plain"})
-      });
-    } else {
-      // Handle other errors
-      console.error('Error accessing file:', error);
-      return new Response(`Error accessing file '${fileName}: ${error}'.`, {
-        status: 500,
-        statusText: 'Internal Server Error',
-        headers: {'Content-Type': 'text/plain'}
+        headers: { "Content-Type": "text/plain" }
       });
     }
+    console.error('Error deleting file:', error);
+    return createResponse(`Error deleting file '${fileName}: ${error}'.`, {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
-}
+};
 function getDirectoryListHtml(baseUrl, files) {
   // TODO: provide a button to download/export all opfs files. Probably best to implement it as a
   // service worker endpoint whose GET method returns a zip file of the contents. That way the
@@ -186,79 +202,87 @@ function getDirectoryListHtml(baseUrl, files) {
     </html>
   `;
 }
-function getDirectoryListJson(files) {
-  return files.map(file => ({kind: file.kind, name: file.name}))
-}
-// TODO: error handling
-async function listOpfsDirectory(basePath, request) {
-  const dir = await getBaseDirHandle(basePath),
-    files = [];
-  for await (const file of dir.values()) {
-    files.push(file);
+
+const handleListDirectory = async (dirHandle, request) => {
+  try {
+    const files = [];
+    for await (const file of dirHandle.values()) {
+      files.push(file);
+    }
+
+    const acceptHeader = request.headers.get("Accept");
+    if (acceptHeader?.includes("application/json")) {
+      const json = JSON.stringify(files.map(file => ({ kind: file.kind, name: file.name })));
+      return createResponse(json, { headers: { "Content-Type": "application/json" } });
+    } else {
+      const html = getDirectoryListHtml(request.url, files);
+      return createResponse(html, { headers: { "Content-Type": "text/html" } });
+    }
+  } catch (error) {
+    console.error('Error listing directory:', error);
+    return createResponse(`Error listing directory: ${error}`, {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    });
   }
-  const acceptHeader = request.headers.get("Accept");
-  if (acceptHeader && acceptHeader.includes("application/json")) {
-    const json = JSON.stringify(getDirectoryListJson(files));
-    return new Response(json, {headers: new Headers({"Content-Type": "application/json"})});
-  } else {
-    const html = getDirectoryListHtml(request.url, files);
-    return new Response(html, {headers: new Headers({"Content-Type": "text/html"})});
-  }
-}
-// Use a subdirectory off the opfs root. The name of the subdir is derived
-// from the scope of the service worker. i.e. 'sw-saver' => 'sw-saver#w'
-async function getBaseDirHandle(basePath) {
-  const opfsRoot = await navigator.storage.getDirectory();
-  return await opfsRoot.getDirectoryHandle((basePath.split('/') + ['w'].join('#')), {create: true});
-}
-self.addEventListener('fetch', event => {
+};
+
+// Main event listener
+self.addEventListener('fetch', (event) => {
   const { request } = event;
   const { method, url } = request;
 
-  //navigator.storage.persisted() is available in service worker, but requesting the permission is not
-  //console.log(navigator.storage);
-
   if (method === 'OPTIONS') {
-    event.respondWith(getOptionsResponse());
+    event.respondWith(handleOptions());
     return;
   }
 
-  if (!url.startsWith(self.registration.scope + 'w/')) {
-    // Only handle requests starting with '/w/'
-    return;
+  const scopeUrl = new URL(self.registration.scope);
+  const requestUrl = new URL(url);
+
+  if (!requestUrl.pathname.startsWith(scopeUrl.pathname + OPFS_PREFIX)) {
+    return; // Not our responsibility
   }
 
-  const scopePathname = new URL(self.registration.scope).pathname;
-  const urlPathname = new URL(url).pathname.replace(scopePathname, '');
-  const pathParts = urlPathname.split('/').filter(part => part !== '');
+  const relativePath = requestUrl.pathname.slice(scopeUrl.pathname.length + OPFS_PREFIX.length);
+  const pathParts = relativePath.split('/').filter(Boolean);
 
-  if (pathParts.length > 2) {
-    // Unsupported subdirectories
-    const response = new Response('Wiki subdirectories are not supported', {
+  if (pathParts.length > 1) {
+    event.respondWith(createResponse('Wiki subdirectories are not supported', {
       status: 404,
       statusText: 'Not Found',
-      headers: {
-        'Content-Type': 'text/plain'
-      }
-    });
-    event.respondWith(response);
+      headers: { 'Content-Type': 'text/plain' }
+    }));
     return;
   }
 
-  if (pathParts.length === 2) {
-    const fileName = pathParts[1];
+  const fileName = pathParts[0];
+  const basePath = scopeUrl.pathname;
 
-    if (method === 'GET') {
-      event.respondWith(getFileFromOpfs(scopePathname, fileName));
-    } else if (method === 'PUT') {
-      event.respondWith(saveFileToOpfs(scopePathname, fileName, request));
-    } else if (method === 'DELETE') {
-      event.respondWith(deleteFileFromOpfs(scopePathname, fileName));
-    } else if (method === 'HEAD') {
-      event.respondWith(getFileFromOpfs(scopePathname, fileName, headersOnly=true));
+  event.respondWith((async () => {
+    // Get the base directory handle once
+    const baseDirHandle = await getOpfsBaseDirHandle(basePath);
+
+    if (fileName) {
+      switch (method) {
+        case 'GET':
+          return handleGetFile(baseDirHandle, fileName);
+        case 'PUT':
+          return handlePutFile(baseDirHandle, fileName, request);
+        case 'DELETE':
+          return handleDeleteFile(baseDirHandle, fileName);
+        case 'HEAD':
+          return handleGetFile(baseDirHandle, fileName, true);
+        default:
+          return createResponse(`Method ${method} not allowed`, {
+            status: 405,
+            statusText: 'Method Not Allowed',
+            headers: { 'Allow': SUPPORTED_METHODS.join(', ') }
+          });
+      }
+    } else {
+      return handleListDirectory(baseDirHandle, request);
     }
-  } else {
-    event.respondWith(listOpfsDirectory(scopePathname, request));
-  }
+  })());
 });
-
