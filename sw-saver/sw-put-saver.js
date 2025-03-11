@@ -228,6 +228,69 @@ const handleListDirectory = async (dirHandle, request) => {
   }
 };
 
+importScripts('./idbKeyval.js');
+function getNativeFSDirectoryPickerHtml(idbKey) {
+  return html = `
+    <html>
+    <head>
+      <title>Directory picker</title>
+    </head>
+    <body>
+      No externl wiki directory found: <button onclick="pickDirectory()">Pick external directory</button>
+      <script src="../idbKeyval.js"></script>
+      <script>
+        async function pickDirectory() {
+          // pick directory, store file handle in idb and reload the page
+          const idbKey = '#sw-saver#w';
+          const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+          await idbKeyval.set(idbKey, dirHandle);
+          console.log(dirHandle);
+          window.location.reload();
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+function respondWithNativeFSDirectoryPicker(idbKey) {
+  const html = getNativeFSDirectoryPickerHtml(idbKey);
+  return createResponse(html, {
+    status: 404,
+    statusText: 'Direcctory Handle Not Found',
+    headers: { "Content-Type": "text/html"}
+  });
+}
+function getNativeFSPermissionRequestHtml(idbKey) {
+  return html = `
+    <html>
+    <head>
+      <title>Directory permission request</title>
+    </head>
+    <body>
+      Directory access unauthorized: <button onclick="requestDirectoryPermission()">Request directory permission</button>
+      <script src="../idbKeyval.js"></script>
+      <script>
+        async function requestDirectoryPermission() {
+          const idbKey = '#sw-saver#w'; // TODO: construct from basePath
+          const dirHandle = await idbKeyval.get(idbKey);
+          console.log(dirHandle);
+          await dirHandle.requestPermission({mode: 'readwrite'});
+          window.location.reload();
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+function respondWithNativeFSPermissionRequest(idbKey) {
+  const html = getNativeFSPermissionRequestHtml(idbKey);
+  return createResponse(html, {
+    status: 403,
+    statusText: 'Directory Access Unauthorized',
+    headers: { "Content-Type": "text/html"}
+  });
+}
+
 // Main event listener
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -256,8 +319,18 @@ self.addEventListener('fetch', (event) => {
   const basePath = scopeUrl.pathname;
 
   event.respondWith((async () => {
-    // Get the base directory handle once
+    /* TODO: Choose between OPFS and NativeFS based on base url ("wi" vs. "we"?)*/
+    // Get the base directory handle
     const baseDirHandle = await getOpfsBaseDirHandle(basePath);
+    /*
+    const idbKey = '#sw-saver#w'; // TODO: construct from basePath
+    const baseDirHandle = await self.idbKeyval.get(idbKey);
+    if (!baseDirHandle) {
+      return respondWithNativeFSDirectoryPicker(idbKey);
+    } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
+      return respondWithNativeFSPermissionRequest(idbKey);
+    }
+    */
 
     if (fileName) {
       switch (method) {
