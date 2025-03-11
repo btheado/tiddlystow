@@ -252,7 +252,7 @@ function getNativeFSDirectoryPickerHtml(idbKey) {
     </html>
   `;
 }
-function respondWithNativeFSDirectoryPicker(idbKey) {
+function handleNativeFSDirectorySelection(idbKey) {
   const html = getNativeFSDirectoryPickerHtml(idbKey);
   return createResponse(html, {
     status: 404,
@@ -282,7 +282,7 @@ function getNativeFSPermissionRequestHtml(idbKey) {
     </html>
   `;
 }
-function respondWithNativeFSPermissionRequest(idbKey) {
+function handleNativeFSPermissionNotGranted(idbKey) {
   const html = getNativeFSPermissionRequestHtml(idbKey);
   return createResponse(html, {
     status: 403,
@@ -290,11 +290,36 @@ function respondWithNativeFSPermissionRequest(idbKey) {
     headers: { "Content-Type": "text/html"}
   });
 }
+function handleFileRequest(request, baseDirHandle, fileName) {
+  const { method } = request;
+  if (fileName) {
+    switch (method) {
+      case 'GET':
+        return handleGetFile(baseDirHandle, fileName);
+      case 'PUT':
+        return handlePutFile(baseDirHandle, fileName, request);
+      case 'DELETE':
+        return handleDeleteFile(baseDirHandle, fileName);
+      case 'HEAD':
+        return handleGetFile(baseDirHandle, fileName, true);
+      case 'OPTIONS':
+        return handleOptions();
+      default:
+        return createResponse(`Method ${method} not allowed`, {
+          status: 405,
+          statusText: 'Method Not Allowed',
+          headers: { 'Allow': SUPPORTED_METHODS.join(', ') }
+        });
+    }
+  } else {
+    return handleListDirectory(baseDirHandle, request);
+  }
+}
 
 // Main event listener
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const { method, url } = request;
+  const { url } = request;
 
   const scopeUrl = new URL(self.registration.scope);
   const requestUrl = new URL(url);
@@ -318,6 +343,8 @@ self.addEventListener('fetch', (event) => {
   const fileName = pathParts[0];
   const basePath = scopeUrl.pathname;
 
+  // NOTE: respondWith must be called synchronously. No async functions can call respondWidth.
+  // any async functions need have their output passed to respondWith.
   event.respondWith((async () => {
     /* TODO: Choose between OPFS and NativeFS based on base url ("wi" vs. "we"?)*/
     // Get the base directory handle
@@ -326,33 +353,12 @@ self.addEventListener('fetch', (event) => {
     const idbKey = '#sw-saver#w'; // TODO: construct from basePath
     const baseDirHandle = await self.idbKeyval.get(idbKey);
     if (!baseDirHandle) {
-      return respondWithNativeFSDirectoryPicker(idbKey);
+      return handleNativeFSDirectorySelection(idbKey);
     } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
-      return respondWithNativeFSPermissionRequest(idbKey);
+      return handleNativeFSPermissionNotGranted(idbKey);
     }
     */
 
-    if (fileName) {
-      switch (method) {
-        case 'GET':
-          return handleGetFile(baseDirHandle, fileName);
-        case 'PUT':
-          return handlePutFile(baseDirHandle, fileName, request);
-        case 'DELETE':
-          return handleDeleteFile(baseDirHandle, fileName);
-        case 'HEAD':
-          return handleGetFile(baseDirHandle, fileName, true);
-        case 'OPTIONS':
-          return handleOptions();
-        default:
-          return createResponse(`Method ${method} not allowed`, {
-            status: 405,
-            statusText: 'Method Not Allowed',
-            headers: { 'Allow': SUPPORTED_METHODS.join(', ') }
-          });
-      }
-    } else {
-      return handleListDirectory(baseDirHandle, request);
-    }
+    return handleFileRequest(request, baseDirHandle, fileName);
   })());
 });
