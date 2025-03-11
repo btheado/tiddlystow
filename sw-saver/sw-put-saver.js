@@ -1,14 +1,7 @@
 // Constants and configuration
 const SUPPORTED_METHODS = ['OPTIONS', 'GET', 'HEAD', 'DELETE', 'PUT'];
-const BASE_DIR_SUFFIX = 'w';
-const OPFS_PREFIX = BASE_DIR_SUFFIX + '/';
-
-// Helper functions
-const getOpfsBaseDirHandle = async (basePath) => {
-  const opfsRoot = await navigator.storage.getDirectory();
-  const dir = basePath.replace(/\/$/,'').split('/').concat(BASE_DIR_SUFFIX).join('#');
-  return opfsRoot.getDirectoryHandle(dir, { create: true });
-};
+const OPFS_PREFIX =  'i/';
+const NATIVEFS_PREFIX = 'e/';
 
 const createResponse = (body, options = {}) => {
   const { status = 200, statusText = 'OK', headers = {} } = options;
@@ -241,7 +234,7 @@ function getNativeFSDirectoryPickerHtml(idbKey) {
       <script>
         async function pickDirectory() {
           // pick directory, store file handle in idb and reload the page
-          const idbKey = '#sw-saver#w';
+          const idbKey = '${idbKey}';
           const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
           await idbKeyval.set(idbKey, dirHandle);
           console.log(dirHandle);
@@ -271,7 +264,7 @@ function getNativeFSPermissionRequestHtml(idbKey) {
       <script src="../idbKeyval.js"></script>
       <script>
         async function requestDirectoryPermission() {
-          const idbKey = '#sw-saver#w'; // TODO: construct from basePath
+          const idbKey = '${idbKey}';
           const dirHandle = await idbKeyval.get(idbKey);
           console.log(dirHandle);
           await dirHandle.requestPermission({mode: 'readwrite'});
@@ -290,6 +283,12 @@ function handleNativeFSPermissionNotGranted(idbKey) {
     headers: { "Content-Type": "text/html"}
   });
 }
+
+const getOpfsBaseDirHandle = async (baseDirName) => {
+  const opfsRoot = await navigator.storage.getDirectory();
+  return opfsRoot.getDirectoryHandle(baseDirName, { create: true });
+};
+
 function handleFileRequest(request, baseDirHandle, fileName) {
   const { method } = request;
   if (fileName) {
@@ -323,12 +322,17 @@ self.addEventListener('fetch', (event) => {
 
   const scopeUrl = new URL(self.registration.scope);
   const requestUrl = new URL(url);
+  let route;
 
-  if (!requestUrl.pathname.startsWith(scopeUrl.pathname + OPFS_PREFIX)) {
+  if (requestUrl.pathname.startsWith(scopeUrl.pathname + OPFS_PREFIX)) {
+    route = OPFS_PREFIX;
+  } else if (requestUrl.pathname.startsWith(scopeUrl.pathname + NATIVEFS_PREFIX)) {
+    route = NATIVEFS_PREFIX;
+  } else {
     return; // Not our responsibility
   }
 
-  const relativePath = requestUrl.pathname.slice(scopeUrl.pathname.length + OPFS_PREFIX.length);
+  const relativePath = requestUrl.pathname.slice(scopeUrl.pathname.length + route.length);
   const pathParts = relativePath.split('/').filter(Boolean);
 
   if (pathParts.length > 1) {
@@ -346,19 +350,23 @@ self.addEventListener('fetch', (event) => {
   // NOTE: respondWith must be called synchronously. No async functions can call respondWidth.
   // any async functions need have their output passed to respondWith.
   event.respondWith((async () => {
-    /* TODO: Choose between OPFS and NativeFS based on base url ("wi" vs. "we"?)*/
-    // Get the base directory handle
-    const baseDirHandle = await getOpfsBaseDirHandle(basePath);
-    /*
-    const idbKey = '#sw-saver#w'; // TODO: construct from basePath
-    const baseDirHandle = await self.idbKeyval.get(idbKey);
-    if (!baseDirHandle) {
-      return handleNativeFSDirectorySelection(idbKey);
-    } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
-      return handleNativeFSPermissionNotGranted(idbKey);
-    }
-    */
+    const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
 
+    // Get the base directory handle
+    let baseDirHandle;
+    if (route === OPFS_PREFIX) {
+      baseDirHandle = await getOpfsBaseDirHandle(dirName);
+    } else if (route === NATIVEFS_PREFIX) {
+      const idbKey = dirName;
+      baseDirHandle = await self.idbKeyval.get(idbKey);
+      if (!baseDirHandle) {
+        return handleNativeFSDirectorySelection(idbKey);
+      } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
+        return handleNativeFSPermissionNotGranted(idbKey);
+      }
+    }
+
+    // Translate the http method in the request to a filesystem action for the given filename
     return handleFileRequest(request, baseDirHandle, fileName);
   })());
 });
