@@ -249,7 +249,7 @@ function handleNativeFSDirectorySelection(idbKey) {
   const html = getNativeFSDirectoryPickerHtml(idbKey);
   return createResponse(html, {
     status: 404,
-    statusText: 'Direcctory Handle Not Found',
+    statusText: 'Directory Handle Not Found',
     headers: { "Content-Type": "text/html"}
   });
 }
@@ -284,6 +284,46 @@ function handleNativeFSPermissionNotGranted(idbKey) {
   });
 }
 
+async function fileExists(directoryHandle, fileName) {
+    try {
+        // Attempt to get the file handle
+        await directoryHandle.getFileHandle(fileName, { create: false });
+        return true; // File exists
+    } catch (error) {
+        if (error.name === 'NotFoundError') {
+            return false; // File does not exist
+        }
+        throw error; // Rethrow unexpected errors
+    }
+}
+
+function getOpfsEvictionProtectionHtml(idbKey) {
+  return html = `
+    <html>
+    <head>
+      <title>Request protection from storage eviction</title>
+    </head>
+    <body>
+      <button onclick="requestEvictionProtection()">Request protection from storage eviction</button>
+      <script>
+        async function requestEvictionProtection() {
+          const persisted = await navigator.storage.persist()
+          console.log(persisted);
+          window.location.reload();
+        }
+      </script>
+    </body>
+    </html>
+  `;
+}
+function handleOpfsEvictionProtectionNotGranted(idbKey) {
+  const html = getOpfsEvictionProtectionHtml(idbKey);
+  return createResponse(html, {
+    status: 403,
+    statusText: 'Eviction protection not enabled',
+    headers: { "Content-Type": "text/html"}
+  });
+}
 const getOpfsBaseDirHandle = async (baseDirName) => {
   const opfsRoot = await navigator.storage.getDirectory();
   return opfsRoot.getDirectoryHandle(baseDirName, { create: true });
@@ -352,21 +392,27 @@ self.addEventListener('fetch', (event) => {
   event.respondWith((async () => {
     const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
 
-    // Get the base directory handle
-    let baseDirHandle;
     if (route === OPFS_PREFIX) {
-      baseDirHandle = await getOpfsBaseDirHandle(dirName);
+      const baseDirHandle = await getOpfsBaseDirHandle(dirName);
+      if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName)) {
+        // Translate the http method in the request to a filesystem action for the given filename
+        return handleFileRequest(request, baseDirHandle, fileName);
+      } else {
+        // File exists in opfs and the user is retrieving it and eviction protection is not granted yet
+        // Intercept the request and return a page for requesting eviction protection
+        return handleOpfsEvictionProtectionNotGranted();
+      }
     } else if (route === NATIVEFS_PREFIX) {
       const idbKey = dirName;
-      baseDirHandle = await self.idbKeyval.get(idbKey);
+      const baseDirHandle = await self.idbKeyval.get(idbKey);
       if (!baseDirHandle) {
         return handleNativeFSDirectorySelection(idbKey);
       } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
         return handleNativeFSPermissionNotGranted(idbKey);
       }
-    }
 
-    // Translate the http method in the request to a filesystem action for the given filename
-    return handleFileRequest(request, baseDirHandle, fileName);
+      // Translate the http method in the request to a filesystem action for the given filename
+      return handleFileRequest(request, baseDirHandle, fileName);
+    }
   })());
 });
