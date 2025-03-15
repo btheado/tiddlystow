@@ -108,7 +108,6 @@ const handleGetFile = async (dirHandle, fileName, headersOnly = false) => {
     });
   }
 };
-// TODO: How to handle requesting eviction protection permission? I doubt service worker is allowed to make such a request
 const handlePutFile = async (dirHandle, fileName, request) => {
   try {
     const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
@@ -301,12 +300,29 @@ function getOpfsEvictionProtectionHtml(idbKey) {
   return html = `
     <html>
     <head>
-      <title>Request protection from storage eviction</title>
+      <title>Request Protection from Storage Eviction</title>
     </head>
-    <body>
+    <body onload="document.cookie = 'storageNoticeShown=true; path=/; samesite=strict'">
+      <h1>Prevent Files from Being Automatically Deleted</h1>
+      <p>
+        By default, web browsers may automatically delete stored files to free up space.
+        To help protect your files from unexpected removal, you can request persistent storage by clicking the button below.
+      </p>
+      <p>
+        <strong>Note:</strong>
+        - <strong>Firefox:</strong> You'll see a prompt asking for permission to persist storage.
+        - <strong>Chrome:</strong> This will likely be granted automatically if the page is bookmarked or added to the home screen. Otherwise, the request will be denied automatically.
+      </p>
+      <p>
+        <strong>Important:</strong> This does not prevent you from manually clearing storage.
+        Be sure to back up important files regularly.
+      </p>
       <button onclick="requestEvictionProtection()">Request protection from storage eviction</button>
+      <script src="../idbKeyval.js"></script>
       <script>
         async function requestEvictionProtection() {
+          const idbKey = '${idbKey}';
+          await idbKeyval.set(idbKey, true);
           const persisted = await navigator.storage.persist()
           console.log(persisted);
           window.location.reload();
@@ -394,13 +410,14 @@ self.addEventListener('fetch', (event) => {
 
     if (route === OPFS_PREFIX) {
       const baseDirHandle = await getOpfsBaseDirHandle(dirName);
-      if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName)) {
+      const idbKey = `${dirName}?storage_notice_shown`;
+      if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName) || await self.idbKeyval.get(idbKey)) {
         // Translate the http method in the request to a filesystem action for the given filename
         return handleFileRequest(request, baseDirHandle, fileName);
       } else {
         // File exists in opfs and the user is retrieving it and eviction protection is not granted yet
         // Intercept the request and return a page for requesting eviction protection
-        return handleOpfsEvictionProtectionNotGranted();
+        return handleOpfsEvictionProtectionNotGranted(idbKey);
       }
     } else if (route === NATIVEFS_PREFIX) {
       const idbKey = dirName;
