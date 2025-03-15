@@ -296,7 +296,11 @@ async function fileExists(directoryHandle, fileName) {
     }
 }
 
-function getOpfsEvictionProtectionHtml(idbKey) {
+function getOpfsEvictionProtectionHtml(idbKey, nextUrl) {
+  let nextPage = "window.location.reload();";
+  if (nextUrl) {
+    nextPage = `window.location.href = "${nextUrl}"`
+  }
   return html = `
     <html>
     <head>
@@ -325,15 +329,15 @@ function getOpfsEvictionProtectionHtml(idbKey) {
           await idbKeyval.set(idbKey, true);
           const persisted = await navigator.storage.persist()
           console.log(persisted);
-          window.location.reload();
+          ${nextPage}
         }
       </script>
     </body>
     </html>
   `;
 }
-function handleOpfsEvictionProtectionNotGranted(idbKey) {
-  const html = getOpfsEvictionProtectionHtml(idbKey);
+function handleOpfsEvictionProtectionNotGranted(idbKey, nextUrl) {
+  const html = getOpfsEvictionProtectionHtml(idbKey, nextUrl);
   return createResponse(html, {
     status: 403,
     statusText: 'Eviction protection not enabled',
@@ -378,6 +382,12 @@ const handleOpfsOrNativeFsRequest = async (request, route, dirName, fileName) =>
     if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, fileName) && !await self.idbKeyval.get(idbKey)) {
       // Intercept the page the first time an existing file is requested so the user can reqeust eviction protection
       return handleOpfsEvictionProtectionNotGranted(idbKey);
+    }
+    // The eviction protection page can be explicitly requested using a parameter on the dir listing url (i.e. 'i/?request_eviction_protection')
+    const request_url = new URL(request.url);
+    if (!fileName && request_url.searchParams.has('request_eviction_protection')) {
+      request_url.searchParams.delete('request_eviction_protection');
+      return handleOpfsEvictionProtectionNotGranted(idbKey, request_url.href);
     }
 
     // Translate the http method in the request to a filesystem action for the given filename
