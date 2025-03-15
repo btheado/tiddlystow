@@ -375,14 +375,13 @@ const handleOpfsOrNativeFsRequest = async (request, route, dirName, fileName) =>
   if (route === OPFS_PREFIX) {
     const baseDirHandle = await getOpfsBaseDirHandle(dirName);
     const idbKey = `${dirName}?storage_notice_shown`;
-    if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName) || await self.idbKeyval.get(idbKey)) {
-      // Translate the http method in the request to a filesystem action for the given filename
-      return handleFileRequest(request, baseDirHandle, fileName);
-    } else {
-      // File exists in opfs and the user is retrieving it and eviction protection is not granted yet
-      // Intercept the request and return a page for requesting eviction protection
+    if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, fileName) && !await self.idbKeyval.get(idbKey)) {
+      // Intercept the page the first time an existing file is requested so the user can reqeust eviction protection
       return handleOpfsEvictionProtectionNotGranted(idbKey);
     }
+
+    // Translate the http method in the request to a filesystem action for the given filename
+    return handleFileRequest(request, baseDirHandle, fileName);
   } else if (route === NATIVEFS_PREFIX) {
     const idbKey = dirName;
     const baseDirHandle = await self.idbKeyval.get(idbKey);
