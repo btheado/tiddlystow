@@ -378,40 +378,38 @@ function handleFileRequest(request, baseDirHandle, fileName) {
     return handleListDirectory(baseDirHandle, request);
   }
 }
-
-const handleOpfsOrNativeFsRequest = async (request, route, dirName, fileName) => {
-  if (route === OPFS_PREFIX) {
-    const baseDirHandle = await getOpfsBaseDirHandle(dirName);
-    const idbKey = `${dirName}?storage_notice_shown`;
-    if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, fileName) && !await self.idbKeyval.get(idbKey)) {
-      // Intercept the page the first time an existing file is requested so the user can reqeust eviction protection
-      return handleOpfsEvictionProtectionNotGranted(idbKey);
-    }
-    // The eviction protection page can be explicitly requested using a parameter on the dir listing url (i.e. 'i/?request_eviction_protection')
-    const request_url = new URL(request.url);
-    if (!fileName && request_url.searchParams.has('request_eviction_protection')) {
-      request_url.searchParams.delete('request_eviction_protection');
-      return handleOpfsEvictionProtectionNotGranted(idbKey, request_url.href);
-    }
-    if (!fileName && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
-      // Augment the directory listing page with a message about requesting eviction protection
-      return handleListDirectory(baseDirHandle, request, "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>");
-    }
-
-    // Translate the http method in the request to a filesystem action for the given filename
-    return handleFileRequest(request, baseDirHandle, fileName);
-  } else if (route === NATIVEFS_PREFIX) {
-    const idbKey = dirName;
-    const baseDirHandle = await self.idbKeyval.get(idbKey);
-    if (!baseDirHandle) {
-      return handleNativeFSDirectorySelection(idbKey);
-    } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
-      return handleNativeFSPermissionNotGranted(idbKey);
-    }
-
-    // Translate the http method in the request to a filesystem action for the given filename
-    return handleFileRequest(request, baseDirHandle, fileName);
+const handleOpfsRequest = async (request, route, dirName, fileName) => {
+  const baseDirHandle = await getOpfsBaseDirHandle(dirName);
+  const idbKey = `${dirName}?storage_notice_shown`;
+  if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, fileName) && !await self.idbKeyval.get(idbKey)) {
+    // Intercept the page the first time an existing file is requested so the user can reqeust eviction protection
+    return handleOpfsEvictionProtectionNotGranted(idbKey);
   }
+  // The eviction protection page can be explicitly requested using a parameter on the dir listing url (i.e. 'i/?request_eviction_protection')
+  const request_url = new URL(request.url);
+  if (!fileName && request_url.searchParams.has('request_eviction_protection')) {
+    request_url.searchParams.delete('request_eviction_protection');
+    return handleOpfsEvictionProtectionNotGranted(idbKey, request_url.href);
+  }
+  if (!fileName && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
+    // Augment the directory listing page with a message about requesting eviction protection
+    return handleListDirectory(baseDirHandle, request, "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>");
+  }
+
+  // Translate the http method in the request to a filesystem action for the given filename
+  return handleFileRequest(request, baseDirHandle, fileName);
+}
+const handleNativeFsRequest = async (request, route, dirName, fileName) => {
+  const idbKey = dirName;
+  const baseDirHandle = await self.idbKeyval.get(idbKey);
+  if (!baseDirHandle) {
+    return handleNativeFSDirectorySelection(idbKey);
+  } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
+    return handleNativeFSPermissionNotGranted(idbKey);
+  }
+
+  // Translate the http method in the request to a filesystem action for the given filename
+  return handleFileRequest(request, baseDirHandle, fileName);
 }
 
 // Main event listener
@@ -445,5 +443,9 @@ self.addEventListener('fetch', (event) => {
 
   const fileName = pathParts[0];
   const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
-  event.respondWith(handleOpfsOrNativeFsRequest(request, route, dirName, fileName));
+  if (route === OPFS_PREFIX) {
+    event.respondWith(handleOpfsRequest(request, route, dirName, fileName));
+  } else if (route === NATIVEFS_PREFIX) {
+    event.respondWith(handleNativeFsRequest(request, route, dirName, fileName));
+  }
 });
