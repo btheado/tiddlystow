@@ -147,18 +147,11 @@ const handleDeleteFile = async (dirHandle, fileName) => {
     });
   }
 };
-function getDirectoryListHtml(baseUrl, files) {
+function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
   // TODO: provide a button to download/export all opfs files. Probably best to implement it as a
   // service worker endpoint whose GET method returns a zip file of the contents. That way the
   // UI doesn't know about opfs...all opfs access is on the "server" side of the service worker.
-  return html = `
-    <html>
-    <head>
-      <title>File list</title>
-    </head>
-    <body>
-      <input type="text" id="urlInput" placeholder="New wiki name">.html
-      <button onclick="navigateToURL()">Go</button>
+  const fileListHtml = files.length == 0 ? "" : `
       <p>Files in this directory</p>
       <ul>
         ${files.map(f => `
@@ -167,6 +160,17 @@ function getDirectoryListHtml(baseUrl, files) {
             <button onclick="deleteFile('${baseUrl}${f.name}')">Delete</button>
           </li>`).join("\n")}
       </ul>
+  `;
+  return html = `
+    <html>
+    <head>
+      <title>File list</title>
+    </head>
+    <body>
+      <input type="text" id="urlInput" placeholder="New wiki name">.html
+      <button onclick="navigateToURL()">Go</button>
+      ${fileListHtml}
+      ${storageWarningHtml || ""}
       <script>
         function navigateToURL() {
           var userInput = document.getElementById("urlInput").value.trim();
@@ -195,7 +199,7 @@ function getDirectoryListHtml(baseUrl, files) {
   `;
 }
 
-const handleListDirectory = async (dirHandle, request) => {
+const handleListDirectory = async (dirHandle, request, storageWarningHtml) => {
   try {
     const files = [];
     for await (const file of dirHandle.values()) {
@@ -207,7 +211,7 @@ const handleListDirectory = async (dirHandle, request) => {
       const json = JSON.stringify(files.map(file => ({ kind: file.kind, name: file.name })));
       return createResponse(json, { headers: { "Content-Type": "application/json" } });
     } else {
-      const html = getDirectoryListHtml(request.url, files);
+      const html = getDirectoryListHtml(request.url, files, storageWarningHtml);
       return createResponse(html, { headers: { "Content-Type": "text/html" } });
     }
   } catch (error) {
@@ -388,6 +392,10 @@ const handleOpfsOrNativeFsRequest = async (request, route, dirName, fileName) =>
     if (!fileName && request_url.searchParams.has('request_eviction_protection')) {
       request_url.searchParams.delete('request_eviction_protection');
       return handleOpfsEvictionProtectionNotGranted(idbKey, request_url.href);
+    }
+    if (!fileName && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
+      // Augment the directory listing page with a message about requesting eviction protection
+      return handleListDirectory(baseDirHandle, request, "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>");
     }
 
     // Translate the http method in the request to a filesystem action for the given filename
