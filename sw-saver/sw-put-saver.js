@@ -371,6 +371,32 @@ function handleFileRequest(request, baseDirHandle, fileName) {
   }
 }
 
+const handleOpfsOrNativeFsRequest = async (request, route, dirName, fileName) => {
+  if (route === OPFS_PREFIX) {
+    const baseDirHandle = await getOpfsBaseDirHandle(dirName);
+    const idbKey = `${dirName}?storage_notice_shown`;
+    if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName) || await self.idbKeyval.get(idbKey)) {
+      // Translate the http method in the request to a filesystem action for the given filename
+      return handleFileRequest(request, baseDirHandle, fileName);
+    } else {
+      // File exists in opfs and the user is retrieving it and eviction protection is not granted yet
+      // Intercept the request and return a page for requesting eviction protection
+      return handleOpfsEvictionProtectionNotGranted(idbKey);
+    }
+  } else if (route === NATIVEFS_PREFIX) {
+    const idbKey = dirName;
+    const baseDirHandle = await self.idbKeyval.get(idbKey);
+    if (!baseDirHandle) {
+      return handleNativeFSDirectorySelection(idbKey);
+    } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
+      return handleNativeFSPermissionNotGranted(idbKey);
+    }
+
+    // Translate the http method in the request to a filesystem action for the given filename
+    return handleFileRequest(request, baseDirHandle, fileName);
+  }
+}
+
 // Main event listener
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -401,35 +427,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   const fileName = pathParts[0];
-  const basePath = scopeUrl.pathname;
-
-  // NOTE: respondWith must be called synchronously. No async functions can call respondWidth.
-  // any async functions need have their output passed to respondWith.
-  event.respondWith((async () => {
-    const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
-
-    if (route === OPFS_PREFIX) {
-      const baseDirHandle = await getOpfsBaseDirHandle(dirName);
-      const idbKey = `${dirName}?storage_notice_shown`;
-      if (await navigator.storage.persisted() || request.method !== 'GET' || !await fileExists(baseDirHandle, fileName) || await self.idbKeyval.get(idbKey)) {
-        // Translate the http method in the request to a filesystem action for the given filename
-        return handleFileRequest(request, baseDirHandle, fileName);
-      } else {
-        // File exists in opfs and the user is retrieving it and eviction protection is not granted yet
-        // Intercept the request and return a page for requesting eviction protection
-        return handleOpfsEvictionProtectionNotGranted(idbKey);
-      }
-    } else if (route === NATIVEFS_PREFIX) {
-      const idbKey = dirName;
-      const baseDirHandle = await self.idbKeyval.get(idbKey);
-      if (!baseDirHandle) {
-        return handleNativeFSDirectorySelection(idbKey);
-      } else if (await baseDirHandle.queryPermission({mode: 'readwrite'}) !== 'granted') {
-        return handleNativeFSPermissionNotGranted(idbKey);
-      }
-
-      // Translate the http method in the request to a filesystem action for the given filename
-      return handleFileRequest(request, baseDirHandle, fileName);
-    }
-  })());
+  const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
+  event.respondWith(handleOpfsOrNativeFsRequest(request, route, dirName, fileName));
 });
