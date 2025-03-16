@@ -13,7 +13,7 @@ This is version 2. [Version 1](../) is still available.
 - Works offline
 - Widespread browser support on mobile and desktop. Uses browser features supported by all major browsers since 2023.
 
-Try it at https://btheado.github.io/tiddlystow/sw-saver.
+Try it at https://btheado.github.io/tiddlystow/v2
 
 ## How it works
 Tiddlystow v2 is implemented as a service worker. It loads and saves local TiddlyWiki files by intercepting HTTP GET and PUT calls.
