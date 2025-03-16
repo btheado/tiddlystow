@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Tiddlystow put saver</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      margin-top: 30px;
+    }
+    .link-container {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      align-items: center;
+    }
+    .link-button {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      min-width: 200px;
+    }
+    .link-button:hover {
+      background-color: #45a049;
+    }
+    .status {
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tiddlystow put saver</h1>
+  <p>Store and edit local <a href="https://tiddlywiki.com">TiddlyWiki</a> files</p>
+
+  <div class="status" id="status">Waiting for service worker activation...</div>
+
+  <div class="container hidden" id="links-container">
+    <div class="link-container">
+      <div id="opfs-link" class="hidden">
+        <a href="./i/" class="link-button">Internal File Access</a>
+        <p>Uses browser's Origin Private File System (OPFS)</p>
+      </div>
+      <div id="nativefs-link" class="hidden">
+        <a href="./e/" class="link-button">External File Access</a>
+        <p>Uses Native File System API for directory access</p>
+      </div>
+      <div id="file-access-not-supported" class="hidden">
+        <p>To use this site either <a href="https://caniuse.com/native-filesystem-api">external file access</a> or <a href="https://caniuse.com/mdn-api_filesystemdirectoryhandle">internal file access</a> functionality is required.</p>
+        <p>Your browser supports neither.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check for service worker support
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw-put-saver.js')
+        .then(function(registration) {
+          console.log('Service Worker registered with scope:', registration.scope);
+        })
+        .catch(function(error) {
+          console.error('Service Worker registration failed:', error);
+          document.getElementById('status').textContent = 'Service Worker registration failed: ' + error;
+        });
+
+      navigator.serviceWorker.ready.then(() => {
+        console.log('A service worker is active.');
+        //document.getElementById('status').textContent = 'Service worker is active. Please select an access method:';
+        document.getElementById('status').textContent = '';
+
+        // Show the links container
+        document.getElementById('links-container').classList.remove('hidden');
+
+        // Check for OPFS support
+        if ('storage' in navigator && 'getDirectory' in navigator.storage) {
+          document.getElementById('opfs-link').classList.remove('hidden');
+        }
+
+        // Check for Native File System API support
+        if ('showDirectoryPicker' in window) {
+          document.getElementById('nativefs-link').classList.remove('hidden');
+        }
+
+        if (!('storage' in navigator && 'getDirectory' in navigator.storage) && !('showDirectoryPicker' in window)) {
+          document.getElementById('file-access-not-supported').classList.remove('hidden');
+        }
+      });
+    } else {
+      document.getElementById('status').textContent = "This site requires service worker functionality";
+    }
+  </script>
+</body>
+</html>
