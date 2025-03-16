@@ -107,8 +107,25 @@ function getWikiCreatorHtml(fileName) {
         // Show status message helper function
         function showStatus(message, type) {
           const statusElement = document.getElementById('status-message');
-          statusElement.textContent = message;
-          statusElement.className = type;
+
+          // Clear any previous content
+          statusElement.innerHTML = '';
+
+          if (type === 'loading') {
+            // Create spinner element
+            const spinner = document.createElement('span');
+            spinner.className = 'loading';
+            statusElement.appendChild(spinner);
+
+            // Add the text message separately
+            const textNode = document.createTextNode(message);
+            statusElement.appendChild(textNode);
+          } else {
+            // For non-loading messages, just use text
+            statusElement.textContent = message;
+            statusElement.className = type;
+          }
+
           statusElement.style.display = 'block';
         }
 
