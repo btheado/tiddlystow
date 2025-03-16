@@ -10,13 +10,117 @@ const handleOptions = () => createResponse(null, {
 });
 function getWikiCreatorHtml(fileName) {
   return `
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
-      <title>Create new Tiddlywiki file</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Create new TiddlyWiki file</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          line-height: 1.6;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 20px;
+          color: #333;
+        }
+        h1 {
+          color: #1976d2;
+          margin-bottom: 0.5em;
+        }
+        .container {
+          background-color: #f5f5f5;
+          border-radius: 8px;
+          padding: 20px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section {
+          margin-bottom: 20px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid #e0e0e0;
+        }
+        .section:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        .button-list {
+          list-style-type: none;
+          padding: 0;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        button {
+          background-color: #1976d2;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 8px 16px;
+          cursor: pointer;
+          transition: background-color 0.3s;
+        }
+        button:hover {
+          background-color: #1565c0;
+        }
+        button:focus {
+          outline: 2px solid #1976d2;
+          outline-offset: 2px;
+        }
+        .file-input-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        #status-message {
+          margin-top: 20px;
+          padding: 10px;
+          border-radius: 4px;
+          display: none;
+        }
+        .success {
+          background-color: #e8f5e9;
+          color: #2e7d32;
+          border: 1px solid #c8e6c9;
+        }
+        .error {
+          background-color: #ffebee;
+          color: #c62828;
+          border: 1px solid #ffcdd2;
+        }
+        .loading {
+          display: inline-block;
+          width: 16px;
+          height: 16px;
+          border: 3px solid rgba(0,0,0,0.2);
+          border-radius: 50%;
+          border-top-color: #1976d2;
+          animation: spin 1s ease-in-out infinite;
+          margin-right: 8px;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      </style>
       <script type="module">
+        // Show status message helper function
+        function showStatus(message, type) {
+          const statusElement = document.getElementById('status-message');
+          statusElement.textContent = message;
+          statusElement.className = type;
+          statusElement.style.display = 'block';
+        }
+
+        // Save content and reload the page
         async function saveAndReload(contents, type, size) {
-          if (contents) {
-            await fetch(window.location.href, {
+          if (!contents) {
+            showStatus('Error: No content to save', 'error');
+            return;
+          }
+
+          try {
+            const response = await fetch(window.location.href, {
               method: 'PUT',
               headers: {
                 'Content-Type': type,
@@ -24,40 +128,117 @@ function getWikiCreatorHtml(fileName) {
               },
               body: contents
             });
-            window.location.reload();
+
+            if (!response.ok) {
+              throw new Error(\`Server responded with \${response.status}: \${response.statusText}\`);
+            }
+
+            showStatus('File saved successfully! Reloading...', 'success');
+            //setTimeout(() => window.location.reload(), 1000);
+            window.location.reload()
+          } catch (error) {
+            showStatus(\`Error saving file: \${error.message}\`, 'error');
+            console.error('Save error:', error);
           }
         }
-        window.openFromUrl = async function (url) {
-          // TODO: error handling
-          const contents = await fetch(url).then(res => res.text());
-          saveAndReload(contents, "text/html", contents.length)
-        }
-        // Hmm, it would be best to use file.name to store the file? That
-        // way the file extension gets picked up automatically? Because it
-        // seems the file extension is what is used when reading opfs file to get the mime type?
-        // But it might be common to want to upload the same file as a template for multiple
-        // different opfs files. In fact for TW files, I would think that would be the common case.
-        // For static files I think using the file name would be the common case.
-        window.openFromUpload = function (event) {
-          const file = event.target.files[0];
+
+        // Open from URL handler
+        window.openFromUrl = async function(url, description) {
+          try {
+            showStatus(\`Loading \${description || url}...\`, 'loading');
+            const response = await fetch(url);
+
+            if (!response.ok) {
+              throw new Error(\`Server responded with \${response.status}: \${response.statusText}\`);
+            }
+
+            const contents = await response.text();
+            saveAndReload(contents, "text/html", contents.length);
+          } catch (error) {
+            showStatus(\`Error fetching from URL: \${error.message}\`, 'error');
+            console.error('Fetch error:', error);
+          }
+        };
+
+        // Open from upload handler
+        window.openFromUpload = function(event) {
+          const fileInput = event.target;
+          const file = fileInput.files[0];
+
+          if (!file) {
+            showStatus('No file selected', 'error');
+            return;
+          }
+
+          // Validate file type (optional)
+          const validTypes = ['text/html', 'application/xhtml+xml'];
+          if (!validTypes.includes(file.type) && !file.name.endsWith('.html')) {
+            showStatus('Warning: File does not appear to be an HTML file', 'error');
+            // Continue anyway - user might know what they're doing
+          }
+
+          showStatus(\`Reading file: \${file.name}...\`, 'loading');
+
           const reader = new FileReader();
           reader.onload = async function(event) {
-            saveAndReload(event.target.result, file.type, file.size);
+            try {
+              await saveAndReload(event.target.result, file.type, file.size);
+            } catch (error) {
+              showStatus(\`Error processing file: \${error.message}\`, 'error');
+              console.error('File processing error:', error);
+            }
           };
+
+          reader.onerror = function() {
+            showStatus('Error reading file', 'error');
+            console.error('FileReader error:', reader.error);
+          };
+
           // Array buffer works for both png and html files to pass to fetch
           reader.readAsArrayBuffer(file);
-        }
+        };
+
+        // Reset file input when dialog is canceled
+        window.resetFileInput = function() {
+          document.getElementById('fileInput').value = '';
+        };
       </script>
     </head>
     <body>
-      <p>File '${fileName}' doesn't exist.</p>
-      <p>Create from a remote url?</p>
-      <ul>
-        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/empty.html')">tiddlywiki.com/empty.html</button></li>
-        <li><button type="button" onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html')">tiddlywiki.com/prerelease</button></li>
-      </ul>
-      <p>Upload file into the browser?</p>
-      <input type="file" id="fileInput" onchange="openFromUpload(event)">
+      <div class="container">
+        <h1>Create TiddlyWiki</h1>
+        <p>The file <strong>'${fileName}'</strong> doesn't exist yet.</p>
+
+        <div class="section">
+          <h2>Create from template</h2>
+          <p>Start with an official TiddlyWiki template:</p>
+          <ul class="button-list">
+            <li><button type="button" aria-label="Create from empty TiddlyWiki template"
+                onclick="openFromUrl('https://tiddlywiki.com/empty.html', 'Empty TiddlyWiki')">
+                Latest release
+            </button></li>
+            <li><button type="button" aria-label="Create from TiddlyWiki prerelease template"
+                onclick="openFromUrl('https://tiddlywiki.com/prerelease/empty.html', 'Prerelease TiddlyWiki')">
+                Prerelease Version
+            </button></li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2>Upload existing TiddlyWiki</h2>
+          <p>Upload a TiddlyWiki file from your computer:</p>
+          <div class="file-input-wrapper">
+            <input type="file" id="fileInput"
+                  accept=".html,.htm"
+                  aria-label="Upload TiddlyWiki file"
+                  onchange="openFromUpload(event)"
+                  onclick="resetFileInput()">
+            <p><small>Select an HTML file containing a TiddlyWiki</small></p>
+          </div>
+        </div>
+
+        <div id="status-message"></div>
+      </div>
     </body>
     </html>
   `;
