@@ -137,57 +137,258 @@ const handleDeleteFile = async (dirHandle, fileName) => {
   }
 };
 function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
-  // TODO: provide a button to download/export all opfs files. Probably best to implement it as a
-  // service worker endpoint whose GET method returns a zip file of the contents. That way the
-  // UI doesn't know about opfs...all opfs access is on the "server" side of the service worker.
-  const fileListHtml = files.length == 0 ? "" : `
-      <p>Files in this directory</p>
-      <ul>
-        ${files.map(f => `
-          <li>
-            <a href="${baseUrl}${f.name}">${f.name}</a>
-            <button onclick="deleteFile('${baseUrl}${f.name}')">Delete</button>
-          </li>`).join("\n")}
+  // Properly encode URLs for security
+  const encodePathComponent = (component) => {
+    return encodeURIComponent(component).replace(/'/g, '%27');
+  };
+
+  // Create file list HTML only if files exist
+  const fileListHtml = files.length === 0 ? "" : `
+    <div class="file-list">
+      <h2>Files in this directory</h2>
+      <ul class="file-items">
+        ${files.map(f => {
+          const encodedPath = encodePathComponent(f.name);
+          const fullPath = `${baseUrl}${encodedPath}`;
+          return `
+          <li class="file-item">
+            <div class="file-info">
+              <a href="${fullPath}" class="file-link">${f.name}</a>
+              ${f.size !== undefined ? `<span class="file-size">(${formatFileSize(f.size)})</span>` : ''}
+            </div>
+            <div class="file-actions">
+              <button
+                class="delete-btn"
+                onclick="deleteFile('${fullPath}', '${f.name}')"
+                aria-label="Delete ${f.name}"
+              >Delete</button>
+            </div>
+          </li>`;
+        }).join("")}
       </ul>
+    </div>
   `;
-  return html = `
-    <html>
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
-      <title>File list</title>
-    </head>
-    <body>
-      <input type="text" id="urlInput" placeholder="New wiki name">.html
-      <button onclick="navigateToURL()">Go</button>
-      ${fileListHtml}
-      ${storageWarningHtml || ""}
-      <script>
-        function navigateToURL() {
-          var userInput = document.getElementById("urlInput").value.trim();
-          if (userInput !== "") {
-            // Navigate to the file creation page for this wiki
-            // TODO: url encoding userInput
-            window.location.href = userInput; // + ".html";
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>File Directory</title>
+      <style>
+        :root {
+          --primary-color: #3498db;
+          --danger-color: #e74c3c;
+          --warning-bg: #fcf8e3;
+          --warning-border: #faebcc;
+          --warning-text: #8a6d3b;
+        }
+
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+          max-width: 900px;
+          margin: 0 auto;
+          padding: 20px;
+          color: #333;
+        }
+
+        h1, h2 {
+          margin-top: 0;
+        }
+
+        .create-form {
+          display: flex;
+          margin-bottom: 20px;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .create-form input {
+          flex: 1;
+          padding: 8px 12px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          font-size: 16px;
+        }
+
+        button {
+          padding: 8px 12px;
+          background-color: var(--primary-color);
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.2s;
+        }
+
+        button:hover {
+          background-color: #2980b9;
+        }
+
+        .delete-btn {
+          background-color: var(--danger-color);
+          font-size: 12px;
+          padding: 4px 8px;
+        }
+
+        .delete-btn:hover {
+          background-color: #c0392b;
+        }
+
+        .file-items {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .file-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 0;
+          border-bottom: 1px solid #eee;
+        }
+
+        .file-link {
+          color: var(--primary-color);
+          text-decoration: none;
+          word-break: break-all;
+        }
+
+        .file-link:hover {
+          text-decoration: underline;
+        }
+
+        .file-size {
+          color: #777;
+          margin-left: 8px;
+          font-size: 14px;
+        }
+
+        .file-actions {
+          flex-shrink: 0;
+          margin-left: 10px;
+        }
+
+        .warning-message {
+          background-color: var(--warning-bg);
+          border: 1px solid var(--warning-border);
+          color: var(--warning-text);
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 4px;
+        }
+
+        .warning-message a {
+          color: var(--warning-text);
+          font-weight: bold;
+        }
+
+        .empty-state {
+          color: #777;
+          font-style: italic;
+          margin: 20px 0;
+        }
+
+        @media (max-width: 600px) {
+          .create-form {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .create-form .file-extension {
+            display: none;
+          }
+
+          button {
+            margin-top: 8px;
           }
         }
-        function deleteFile(url) {
-          fetch(url, {method: 'DELETE'})
-          .then(response => {
-            if (response.ok) {
-              window.location.reload();
-            } else {
-              console.log('Failed to delete', url);
-            }
-          })
-          .catch(error => {
-            console.log('Failed to delete:', error)
-          })
+      </style>
+    </head>
+    <body>
+      <h1>File Directory</h1>
+
+      ${storageWarningHtml ? `<div class="warning-message">${storageWarningHtml}</div>` : ""}
+
+      <div class="create-form">
+        <input
+          type="text"
+          id="urlInput"
+          placeholder="New wiki name"
+          aria-label="New wiki name"
+        >
+        <span class="file-extension">.html</span>
+        <button onclick="navigateToURL()">Create</button>
+      </div>
+
+      ${fileListHtml || '<p class="empty-state">No files in this directory</p>'}
+
+      <script>
+        function navigateToURL() {
+          const userInput = document.getElementById("urlInput").value.trim();
+          if (userInput !== "") {
+            // URL encode the user input for safety
+            const encodedInput = encodeURIComponent(userInput);
+            window.location.href = encodedInput + ".html";
+          } else {
+            alert("Please enter a file name");
+          }
         }
+
+        function deleteFile(url, fileName) {
+          if (confirm("Are you sure you want to delete " + fileName + "?")) {
+            fetch(url, { method: 'DELETE' })
+              .then(response => {
+                if (response.ok) {
+                  window.location.reload();
+                } else {
+                  alert('Failed to delete: ' + fileName);
+                  console.error('Delete failed with status:', response.status);
+                }
+              })
+              .catch(error => {
+                alert('Error deleting file: ' + error.message);
+                console.error('Delete error:', error);
+              });
+          }
+        }
+
+        // Utility function to format file sizes
+        function formatFileSize(bytes) {
+          if (bytes === undefined || bytes === null) return '';
+
+          const units = ['B', 'KB', 'MB', 'GB'];
+          let size = bytes;
+          let unitIndex = 0;
+
+          while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+          }
+
+          return size.toFixed(unitIndex === 0 ? 0 : 1) + ' ' + units[unitIndex];
+        }
+
+        // Focus the input field when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('urlInput').focus();
+
+          // Add keyboard shortcut (Enter key) to create new file
+          document.getElementById('urlInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+              navigateToURL();
+            }
+          });
+        });
       </script>
     </body>
     </html>
   `;
 }
-
 const handleListDirectory = async (dirHandle, request, storageWarningHtml) => {
   try {
     const files = [];
