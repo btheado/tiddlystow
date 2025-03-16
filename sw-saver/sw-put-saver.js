@@ -8,8 +8,6 @@ const createResponse = (body, options = {}) => {
 };
 
 // TODO: home page links
-// TODO: add offline support
-// TODO: add manifest for installation
 // TODO: add download/backup buttons to the directory list page (but only for opfs?)
 
 importScripts('./idbKeyval.js', './corefs.js', './opfs.js', './nativefs.js');
@@ -28,7 +26,14 @@ self.addEventListener('fetch', (event) => {
   } else if (requestUrl.pathname.startsWith(scopeUrl.pathname + NATIVEFS_PREFIX)) {
     route = NATIVEFS_PREFIX;
   } else {
-    return; // Not our responsibility
+    // Fetch all other resources from the network. Serve from cache on failure in order to support offline use.
+    // Directory listings and stored files are handled by the service worker which is always available offline.
+    // So this is really only for files like index.html.
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
+    );
+    return;
   }
 
   const relativePath = requestUrl.pathname.slice(scopeUrl.pathname.length + route.length);
@@ -50,4 +55,20 @@ self.addEventListener('fetch', (event) => {
   } else if (route === NATIVEFS_PREFIX) {
     event.respondWith(handleNativeFsRequest(request, route, dirName, fileName));
   }
+});
+
+// Offline support
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open('tiddlystow-v2-001').then((cache) => {
+      return cache.addAll([
+        './',
+        'index.html',
+        'manifest.json',
+        '../favicon.ico',
+        '../android-chrome-192x192.png',
+        '../android-chrome-512x512.png'
+      ]);
+    })
+  );
 });
