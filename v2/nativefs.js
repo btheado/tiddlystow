@@ -4,6 +4,7 @@ function getNativeFSTemplateHtml(title, buttonText, actionFunction, idbKey) {
     <html>
     <head>
       <title>${title}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -11,7 +12,7 @@ function getNativeFSTemplateHtml(title, buttonText, actionFunction, idbKey) {
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          height: 100vh;
+          height: 40vh;
           margin: 0;
           background-color: #f5f5f5;
           color: #333;
