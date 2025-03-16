@@ -1,25 +1,79 @@
-function getNativeFSDirectoryPickerHtml(idbKey) {
-  return html = `
+// Shared template function for consistent styling and structure
+function getNativeFSTemplateHtml(title, buttonText, actionFunction, idbKey) {
+  return `
     <html>
     <head>
-      <title>Directory picker</title>
+      <title>${title}</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          margin: 0;
+          background-color: #f5f5f5;
+          color: #333;
+        }
+        .container {
+          background-color: white;
+          padding: 2rem;
+          border-radius: 8px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          text-align: center;
+        }
+        button {
+          background-color: #4a86e8;
+          color: white;
+          border: none;
+          padding: 0.75rem 1.5rem;
+          border-radius: 4px;
+          font-size: 1rem;
+          cursor: pointer;
+          margin-top: 1rem;
+          transition: background-color 0.2s;
+        }
+        button:hover {
+          background-color: #3a76d8;
+        }
+        .message {
+          margin-bottom: 1rem;
+        }
+      </style>
     </head>
     <body>
-      No externl wiki directory found: <button onclick="pickDirectory()">Pick external directory</button>
+      <div class="container">
+        <div class="message">${title}</div>
+        <button onclick="${actionFunction}()">${buttonText}</button>
+      </div>
       <script src="../idbKeyval.js"></script>
       <script>
-        async function pickDirectory() {
-          // pick directory, store file handle in idb and reload the page
+        async function ${actionFunction}() {
           const idbKey = '${idbKey}';
-          const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
-          await idbKeyval.set(idbKey, dirHandle);
-          console.log(dirHandle);
+          ${actionFunction === 'pickDirectory' ?
+            `const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
+            await idbKeyval.set(idbKey, dirHandle);
+            console.log(dirHandle);` :
+            `const dirHandle = await idbKeyval.get(idbKey);
+            console.log(dirHandle);
+            await dirHandle.requestPermission({mode: 'readwrite'});`
+          }
           window.location.reload();
         }
       </script>
     </body>
     </html>
   `;
+}
+
+function getNativeFSDirectoryPickerHtml(idbKey) {
+  return getNativeFSTemplateHtml(
+    'No external wiki directory found',
+    'Pick external directory',
+    'pickDirectory',
+    idbKey
+  );
 }
 function handleNativeFSDirectorySelection(idbKey) {
   const html = getNativeFSDirectoryPickerHtml(idbKey);
@@ -29,27 +83,14 @@ function handleNativeFSDirectorySelection(idbKey) {
     headers: { "Content-Type": "text/html"}
   });
 }
+
 function getNativeFSPermissionRequestHtml(idbKey) {
-  return html = `
-    <html>
-    <head>
-      <title>Directory permission request</title>
-    </head>
-    <body>
-      Directory access unauthorized: <button onclick="requestDirectoryPermission()">Request directory permission</button>
-      <script src="../idbKeyval.js"></script>
-      <script>
-        async function requestDirectoryPermission() {
-          const idbKey = '${idbKey}';
-          const dirHandle = await idbKeyval.get(idbKey);
-          console.log(dirHandle);
-          await dirHandle.requestPermission({mode: 'readwrite'});
-          window.location.reload();
-        }
-      </script>
-    </body>
-    </html>
-  `;
+  return getNativeFSTemplateHtml(
+    'Directory access unauthorized',
+    'Request directory permission',
+    'requestDirectoryPermission',
+    idbKey
+  );
 }
 function handleNativeFSPermissionNotGranted(idbKey) {
   const html = getNativeFSPermissionRequestHtml(idbKey);
