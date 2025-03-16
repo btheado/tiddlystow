@@ -44,6 +44,7 @@
 </head>
 <body>
   <h1>Tiddlystow put saver</h1>
+  <p>Store and edit local <a href="https://tiddlywiki.com">TiddlyWiki</a> files</p>
 
   <div class="status" id="status">Waiting for service worker activation...</div>
 
@@ -56,6 +57,10 @@
       <div id="nativefs-link" class="hidden">
         <a href="./e/" class="link-button">External File Access</a>
         <p>Uses Native File System API for directory access</p>
+      </div>
+      <div id="file-access-not-supported" class="hidden">
+        <p>To use this site either <a href="https://caniuse.com/native-filesystem-api">external file access</a> or <a href="https://caniuse.com/mdn-api_filesystemdirectoryhandle">internal file access</a> functionality is required.</p>
+        <p>Your browser supports neither.</p>
       </div>
     </div>
   </div>
@@ -88,6 +93,10 @@
         // Check for Native File System API support
         if ('showDirectoryPicker' in window) {
           document.getElementById('nativefs-link').classList.remove('hidden');
+        }
+
+        if (!('storage' in navigator && 'getDirectory' in navigator.storage) && !('showDirectoryPicker' in window)) {
+          document.getElementById('file-access-not-supported').classList.remove('hidden');
         }
       });
     } else {
