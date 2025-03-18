@@ -67,6 +67,10 @@
         <p>To use this site either <a href="https://caniuse.com/native-filesystem-api">external file access</a> or <a href="https://caniuse.com/mdn-api_filesystemdirectoryhandle">internal file access</a> functionality is required.</p>
         <p>Your browser supports neither.</p>
       </div>
+      <div id="writable-file-stream-api-not-supported" class="hidden">
+        <p>To use this site the <a href="https://caniuse.com/mdn-api_filesystemwritablefilestream">WriteableFileStream API</a> is required.</p>
+        <p>Your browser does not support it.</p>
+      </div>
     </div>
   </div>
 
@@ -90,17 +94,24 @@
         // Show the links container
         document.getElementById('links-container').classList.remove('hidden');
 
-        // Check for OPFS support
-        if ('storage' in navigator && 'getDirectory' in navigator.storage) {
-          document.getElementById('opfs-link').classList.remove('hidden');
+        const isWritableFileStreamSupported = window.WritableStream && window.FileSystemWritableFileStream;
+        const isOpfsSupported = 'storage' in navigator && 'getDirectory' in navigator.storage;
+        const isNativeFsSupported = 'showDirectoryPicker' in window;
+
+        // Display buttons if browser has proper support
+        // Safari current supports OPFS, but not using the writable file stream api
+        if (isWritableFileStreamSupported) {
+          if (isOpfsSupported) {
+            document.getElementById('opfs-link').classList.remove('hidden');
+          }
+          if (isNativeFsSupported) {
+            document.getElementById('nativefs-link').classList.remove('hidden');
+          }
+        } else {
+          document.getElementById('writable-file-stream-api-not-supported').classList.remove('hidden');
         }
 
-        // Check for Native File System API support
-        if ('showDirectoryPicker' in window) {
-          document.getElementById('nativefs-link').classList.remove('hidden');
-        }
-
-        if (!('storage' in navigator && 'getDirectory' in navigator.storage) && !('showDirectoryPicker' in window)) {
+        if (!isOpfsSupported && !isNativeFsSupported) {
           document.getElementById('file-access-not-supported').classList.remove('hidden');
         }
       });
