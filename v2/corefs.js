@@ -355,6 +355,14 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
               ${f.size !== undefined ? `<span class="file-size">(${formatFileSize(f.size)})</span>` : ''}
             </div>
             <div class="file-actions">
+              <!-- This is not working for chrome. It gives error "file wasn't available on site". It works fine in firefox -->
+              <a
+                class="btn"
+                href="${fullPath}"
+                download="${f.name}"
+                aria-label="Download ${f.name}"
+                role="button"
+              >Download</a>
               <button
                 class="delete-btn"
                 onclick="deleteFile('${fullPath}', '${f.name}')"
@@ -422,7 +430,7 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
           font-size: 16px;
         }
 
-        button {
+        button, .btn {
           padding: 8px 12px;
           background-color: var(--primary-color);
           color: white;
@@ -433,14 +441,21 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
           transition: background-color 0.2s;
         }
 
-        button:hover {
+        button:hover, .btn:hover {
           background-color: #2980b9;
+        }
+
+        .file-actions button, .file-actions .btn {
+          font-size: 12px;
+          padding: 4px 8px;
+        }
+
+        a.btn {
+          text-decoration: none;
         }
 
         .delete-btn, .disconnect-button {
           background-color: var(--danger-color);
-          font-size: 12px;
-          padding: 4px 8px;
         }
 
         .delete-btn:hover, .disconnect-button:hover {
