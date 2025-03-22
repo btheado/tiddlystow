@@ -355,14 +355,10 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
               ${f.size !== undefined ? `<span class="file-size">(${formatFileSize(f.size)})</span>` : ''}
             </div>
             <div class="file-actions">
-              <!-- This is not working for chrome. It gives error "file wasn't available on site". It works fine in firefox -->
-              <a
-                class="btn"
-                href="${fullPath}"
-                download="${f.name}"
+              <button
+                onclick="downloadFile('${fullPath}', '${f.name}')"
                 aria-label="Download ${f.name}"
-                role="button"
-              >Download</a>
+              >Download</button>
               <button
                 class="delete-btn"
                 onclick="deleteFile('${fullPath}', '${f.name}')"
@@ -583,6 +579,16 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
                 console.error('Delete error:', error);
               });
           }
+        }
+        async function downloadFile(url, filename) {
+          const response = await fetch(url);
+          const blob = await response.blob();
+
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(a.href);
         }
 
         function disconnectDirectory() {
