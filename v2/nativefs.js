@@ -111,7 +111,7 @@ const handleNativeFsRequest = async (request, route, dirName, fileName) => {
   }
 
   // Only one directory is currently supported, and this provides a way to select a different directory
-  if (request.method === 'DELETE') {
+  if (!fileName && request.method === 'DELETE') {
     await self.idbKeyval.del(idbKey);
     return handleNativeFSDirectorySelection(idbKey);
   }
