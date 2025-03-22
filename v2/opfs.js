@@ -242,7 +242,9 @@ const handleOpfsRequest = async (request, route, dirName, fileName) => {
   }
   if (!fileName && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
     // Augment the directory listing page with a message about requesting eviction protection
-    return handleListDirectory(baseDirHandle, request, "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>");
+    return handleListDirectory(baseDirHandle, request, {
+      storageWarningHtml: "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>"
+    });
   }
 
   // Translate the http method in the request to a filesystem action for the given filename

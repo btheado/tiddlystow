@@ -110,6 +110,18 @@ const handleNativeFsRequest = async (request, route, dirName, fileName) => {
     return handleNativeFSPermissionNotGranted(idbKey);
   }
 
+  // Only one directory is currently supported, and this provides a way to select a different directory
+  if (request.method === 'DELETE') {
+    await self.idbKeyval.del(idbKey);
+    return handleNativeFSDirectorySelection(idbKey);
+  }
+
+  if (!fileName) {
+    return handleListDirectory(baseDirHandle, request, {
+      footerHtml: '<button class="disconnect-button" onclick="disconnectDirectory()">Disconnect Directory</button>'
+    });
+  }
+
   // Translate the http method in the request to a filesystem action for the given filename
   return handleFileRequest(request, baseDirHandle, fileName);
 }

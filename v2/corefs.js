@@ -334,7 +334,7 @@ const handleDeleteFile = async (dirHandle, fileName) => {
     });
   }
 };
-function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
+function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} = {}) {
   // Properly encode URLs for security
   const encodePathComponent = (component) => {
     return encodeURIComponent(component).replace(/'/g, '%27');
@@ -426,13 +426,13 @@ function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
           background-color: #2980b9;
         }
 
-        .delete-btn {
+        .delete-btn, .disconnect-button {
           background-color: var(--danger-color);
           font-size: 12px;
           padding: 4px 8px;
         }
 
-        .delete-btn:hover {
+        .delete-btn:hover, .disconnect-button:hover {
           background-color: #c0392b;
         }
 
@@ -525,6 +525,8 @@ function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
 
       ${fileListHtml || '<p class="empty-state">No files in this directory</p>'}
 
+      ${footerHtml || ""}
+
       <script>
         function navigateToURL() {
           const userInput = document.getElementById("urlInput").value.trim();
@@ -553,6 +555,18 @@ function getDirectoryListHtml(baseUrl, files, storageWarningHtml) {
                 console.error('Delete error:', error);
               });
           }
+        }
+
+        function disconnectDirectory() {
+          fetch(window.location.href, {
+            method: 'DELETE'
+          })
+          .then(response => {
+            window.location.reload();
+          })
+          .catch(error => {
+            console.error('Error disconnecting directory:', error);
+          });
         }
 
         // Utility function to format file sizes
