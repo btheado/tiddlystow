@@ -403,11 +403,22 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
           gap: 5px;
         }
 
-        .create-form input {
+        .input-wrapper {
+          display: flex;
+          align-items: center;
+          flex: 1;
+        }
+
+        .input-wrapper input {
           flex: 1;
           padding: 8px 12px;
           border: 1px solid #ddd;
           border-radius: 4px;
+          font-size: 16px;
+        }
+
+        .file-extension {
+          margin-left: 4px;
           font-size: 16px;
         }
 
@@ -497,8 +508,8 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
             align-items: stretch;
           }
 
-          .create-form .file-extension {
-            display: none;
+          .input-wrapper {
+            width: 100%;
           }
 
           button {
@@ -513,6 +524,7 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
       ${storageWarningHtml ? `<div class="warning-message">${storageWarningHtml}</div>` : ""}
 
       <div class="create-form">
+        <div class="input-wrapper">
         <input
           type="text"
           id="urlInput"
@@ -520,6 +532,7 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
           aria-label="New wiki name"
         >
         <span class="file-extension">.html</span>
+        </div>
         <button onclick="navigateToURL()">Create</button>
       </div>
 
