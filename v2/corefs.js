@@ -607,6 +607,8 @@ const handleListDirectory = async (dirHandle, request, storageWarningHtml) => {
     for await (const file of dirHandle.values()) {
       files.push(file);
     }
+    // Ensure consistent order of the files by sorting by name
+    files.sort((a, b) => a.name.localeCompare(b.name));
 
     const acceptHeader = request.headers.get("Accept");
     if (acceptHeader?.includes("application/json")) {
