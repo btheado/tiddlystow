@@ -1,71 +1,17 @@
 // Shared template function for consistent styling and structure
 function getNativeFSTemplateHtml(title, buttonText, actionFunction, idbKey) {
-  return `
-    <html>
-    <head>
-      <title>${title}</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <style>
-        body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 40vh;
-          margin: 0;
-          background-color: #f5f5f5;
-          color: #333;
-        }
-        .container {
-          background-color: white;
-          padding: 2rem;
-          border-radius: 8px;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-          text-align: center;
-        }
-        button {
-          background-color: #4a86e8;
-          color: white;
-          border: none;
-          padding: 0.75rem 1.5rem;
-          border-radius: 4px;
-          font-size: 1rem;
-          cursor: pointer;
-          margin-top: 1rem;
-          transition: background-color 0.2s;
-        }
-        button:hover {
-          background-color: #3a76d8;
-        }
-        .message {
-          margin-bottom: 1rem;
-        }
-      </style>
-    </head>
-    <body>
+  return renderHtmlPage({
+    title,
+    stylesheets: ['styles/nativefs.css'],
+    head: pageDataScript({ idbKey, actionFunction }),
+    body: `
       <div class="container">
-        <div class="message">${title}</div>
-        <button onclick="${actionFunction}()">${buttonText}</button>
+        <div class="message">${escapeHtml(title)}</div>
+        <button id="nativeFsActionButton" type="button">${escapeHtml(buttonText)}</button>
       </div>
-      <script src="../idbKeyval.js"></script>
-      <script>
-        async function ${actionFunction}() {
-          const idbKey = '${idbKey}';
-          ${actionFunction === 'pickDirectory' ?
-            `const dirHandle = await window.showDirectoryPicker({mode: 'readwrite'});
-            await idbKeyval.set(idbKey, dirHandle);
-            console.log(dirHandle);` :
-            `const dirHandle = await idbKeyval.get(idbKey);
-            console.log(dirHandle);
-            await dirHandle.requestPermission({mode: 'readwrite'});`
-          }
-          window.location.reload();
-        }
-      </script>
-    </body>
-    </html>
-  `;
+    `,
+    scripts: ['idbKeyval.js', 'scripts/nativefs-page.js']
+  });
 }
 
 function getNativeFSDirectoryPickerHtml(idbKey) {
@@ -118,7 +64,7 @@ const handleNativeFsRequest = async (request, route, dirName, fileName) => {
 
   if (!fileName) {
     return handleListDirectory(baseDirHandle, request, {
-      footerHtml: '<button class="disconnect-button" onclick="disconnectDirectory()">Disconnect Directory</button>'
+      footerHtml: '<button type="button" class="disconnect-button" id="disconnectDirectoryButton">Disconnect Directory</button>'
     });
   }
 

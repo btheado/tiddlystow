@@ -10,7 +10,7 @@ const createResponse = (body, options = {}) => {
 // TODO: home page links
 // TODO: add download/backup buttons to the directory list page (but only for opfs?)
 
-importScripts('./idbKeyval.js', './corefs.js', './opfs.js', './nativefs.js');
+importScripts('./idbKeyval.js', './page.js', './corefs.js', './opfs.js', './nativefs.js');
 
 // Fetch handler to convert HTTP read/write methods to browser file system calls
 self.addEventListener('fetch', (event) => {
@@ -60,11 +60,21 @@ self.addEventListener('fetch', (event) => {
 // Offline support
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open('tiddlystow-v2-001').then((cache) => {
+    caches.open('tiddlystow-v2-002').then((cache) => {
       return cache.addAll([
         './',
         'index.html',
         'manifest.json',
+        'idbKeyval.js',
+        'page.js',
+        'styles/wiki-creator.css',
+        'styles/directory-list.css',
+        'styles/nativefs.css',
+        'styles/opfs.css',
+        'scripts/wiki-creator.js',
+        'scripts/directory-list.js',
+        'scripts/nativefs-page.js',
+        'scripts/opfs-eviction.js',
         '../favicon.ico',
         '../android-chrome-192x192.png',
         '../android-chrome-512x512.png'
