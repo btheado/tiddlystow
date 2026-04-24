@@ -1,7 +1,54 @@
+const NATIVEFS_MOUNTS_KEY_SUFFIX = '?mounts';
+const NATIVEFS_MOUNT_KEY_PREFIX = '?mount:';
+
+function encodePathForUrl(path) {
+  return path
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+}
+
+function normalizeWikiPath(input) {
+  const trimmed = input.trim().replace(/^\/+|\/+$/g, '');
+  if (!trimmed) {
+    return '';
+  }
+  return /\.(html?|xhtml)$/i.test(trimmed) ? trimmed : `${trimmed}.html`;
+}
+
+function getNativeFSMountsKey(rootKey) {
+  return `${rootKey}${NATIVEFS_MOUNTS_KEY_SUFFIX}`;
+}
+
+function getNativeFSMountHandleKey(rootKey, mountSlug) {
+  return `${rootKey}${NATIVEFS_MOUNT_KEY_PREFIX}${mountSlug}`;
+}
+
+function slugifyMountName(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function getUniqueMountSlug(baseSlug, mounts) {
+  const existingSlugs = new Set(mounts.map((mount) => mount.slug));
+  if (!existingSlugs.has(baseSlug)) {
+    return baseSlug;
+  }
+
+  let suffix = 2;
+  while (existingSlugs.has(`${baseSlug}-${suffix}`)) {
+    suffix += 1;
+  }
+  return `${baseSlug}-${suffix}`;
+}
+
 function navigateToURL() {
   const userInput = document.getElementById('urlInput').value.trim();
   if (userInput !== '') {
-    window.location.href = encodeURIComponent(userInput) + '.html';
+    const wikiPath = normalizeWikiPath(userInput);
+    window.location.href = encodePathForUrl(wikiPath);
   } else {
     alert('Please enter a file name');
   }
@@ -39,22 +86,55 @@ async function downloadFile(url, filename) {
 }
 
 async function disconnectDirectory() {
+  const disconnectButton = document.getElementById('disconnectDirectoryButton');
   try {
     await fetch(window.location.href, { method: 'DELETE' });
+    if (disconnectButton?.dataset.redirectUrl) {
+      window.location.href = disconnectButton.dataset.redirectUrl;
+      return;
+    }
     window.location.reload();
   } catch (error) {
     console.error('Error disconnecting directory:', error);
   }
 }
 
+async function attachDirectory() {
+  const { nativeFsRootKey } = window.TIDDLYSTOW_PAGE_DATA || {};
+  if (!nativeFsRootKey) {
+    return;
+  }
+
+  try {
+    const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const mountsKey = getNativeFSMountsKey(nativeFsRootKey);
+    const mounts = await idbKeyval.get(mountsKey) || [];
+    const baseSlug = slugifyMountName(dirHandle.name) || 'directory';
+    const mountSlug = getUniqueMountSlug(baseSlug, mounts);
+
+    mounts.push({ slug: mountSlug, name: dirHandle.name });
+    mounts.sort((left, right) => left.name.localeCompare(right.name));
+
+    await idbKeyval.set(getNativeFSMountHandleKey(nativeFsRootKey, mountSlug), dirHandle);
+    await idbKeyval.set(mountsKey, mounts);
+    window.location.reload();
+  } catch (error) {
+    if (error.name !== 'AbortError') {
+      console.error('Error attaching directory:', error);
+    }
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const urlInput = document.getElementById('urlInput');
-  urlInput.focus();
-  urlInput.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-      navigateToURL();
-    }
-  });
+  if (urlInput) {
+    urlInput.focus();
+    urlInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        navigateToURL();
+      }
+    });
+  }
 
   const createButton = document.getElementById('createButton');
   if (createButton) {
@@ -72,5 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const disconnectButton = document.getElementById('disconnectDirectoryButton');
   if (disconnectButton) {
     disconnectButton.addEventListener('click', disconnectDirectory);
+  }
+
+  const attachDirectoryButton = document.getElementById('attachDirectoryButton');
+  if (attachDirectoryButton) {
+    attachDirectoryButton.addEventListener('click', attachDirectory);
   }
 });

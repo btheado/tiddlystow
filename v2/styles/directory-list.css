@@ -20,6 +20,21 @@ h2 {
   margin-top: 0;
 }
 
+.breadcrumbs {
+  margin-bottom: 16px;
+  color: #666;
+}
+
+.breadcrumbs a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.breadcrumb-separator {
+  margin: 0 8px;
+  color: #999;
+}
+
 .create-form {
   display: flex;
   margin-bottom: 20px;
@@ -130,6 +145,30 @@ a.btn {
 .warning-message a {
   color: var(--warning-text);
   font-weight: bold;
+}
+
+.secondary-section {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.mount-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+}
+
+.mount-item + .mount-item {
+  margin-top: 8px;
+}
+
+.footer-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .empty-state {

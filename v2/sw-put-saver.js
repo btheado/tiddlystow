@@ -37,30 +37,34 @@ self.addEventListener('fetch', (event) => {
   }
 
   const relativePath = requestUrl.pathname.slice(scopeUrl.pathname.length + route.length);
-  const pathParts = relativePath.split('/').filter(Boolean);
+  const rawPathParts = relativePath.split('/').filter(Boolean);
+  const pathParts = rawPathParts.map((part) => decodeURIComponent(part));
+  let pathInfo = {
+    mountSlug: null,
+    pathSegments: pathParts,
+    isDirectoryRequest: requestUrl.pathname.endsWith('/')
+  };
 
-  if (pathParts.length > 1) {
-    event.respondWith(createResponse('Wiki subdirectories are not supported', {
-      status: 404,
-      statusText: 'Not Found',
-      headers: { 'Content-Type': 'text/plain' }
-    }));
-    return;
+  if (route === NATIVEFS_PREFIX && pathParts[0]?.startsWith('@') && pathParts[0].length > 1) {
+    pathInfo = {
+      mountSlug: pathParts[0].slice(1),
+      pathSegments: pathParts.slice(1),
+      isDirectoryRequest: requestUrl.pathname.endsWith('/') || pathParts.length === 1
+    };
   }
 
-  const fileName = pathParts[0];
   const dirName = (scopeUrl.pathname + route).replace(/\/$/,'').replaceAll('/', '#');
   if (route === OPFS_PREFIX) {
-    event.respondWith(handleOpfsRequest(request, route, dirName, fileName));
+    event.respondWith(handleOpfsRequest(request, route, dirName, pathInfo));
   } else if (route === NATIVEFS_PREFIX) {
-    event.respondWith(handleNativeFsRequest(request, route, dirName, fileName));
+    event.respondWith(handleNativeFsRequest(request, route, dirName, pathInfo));
   }
 });
 
 // Offline support
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open('tiddlystow-v2-002').then((cache) => {
+    caches.open('tiddlystow-v2-003').then((cache) => {
       return cache.addAll([
         './',
         'index.html',

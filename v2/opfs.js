@@ -47,25 +47,31 @@ const getOpfsBaseDirHandle = async (baseDirName) => {
   return opfsRoot.getDirectoryHandle(baseDirName, { create: true });
 };
 const handleOpfsRequest = async (request, route, dirName, fileName) => {
+  const pathSegments = fileName.pathSegments;
   const baseDirHandle = await getOpfsBaseDirHandle(dirName);
   const idbKey = `${dirName}?storage_notice_shown`;
-  if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, fileName) && !await self.idbKeyval.get(idbKey)) {
+  if (!await navigator.storage.persisted() && request.method === 'GET' && await fileExists(baseDirHandle, pathSegments) && !await self.idbKeyval.get(idbKey)) {
     // Intercept the page the first time an existing file is requested so the user can reqeust eviction protection
     return handleOpfsEvictionProtectionNotGranted(idbKey);
   }
   // The eviction protection page can be explicitly requested using a parameter on the dir listing url (i.e. 'i/?request_eviction_protection')
   const request_url = new URL(request.url);
-  if (!fileName && request_url.searchParams.has('request_eviction_protection')) {
+  if (pathSegments.length === 0 && request_url.searchParams.has('request_eviction_protection')) {
     request_url.searchParams.delete('request_eviction_protection');
     return handleOpfsEvictionProtectionNotGranted(idbKey, request_url.href);
   }
-  if (!fileName && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
+  if (pathSegments.length === 0 && !await navigator.storage.persisted() && await self.idbKeyval.get(idbKey)) {
     // Augment the directory listing page with a message about requesting eviction protection
-    return handleListDirectory(baseDirHandle, request, {
+    return handleFileRequest(request, baseDirHandle, pathSegments, {
+      isDirectoryRequest: fileName.isDirectoryRequest,
+      directoryOptions: {
       storageWarningHtml: "<p>Storage not protected from eviction. <a href='?request_eviction_protection'>Request eviction protection</a></p>"
+      }
     });
   }
 
   // Translate the http method in the request to a filesystem action for the given filename
-  return handleFileRequest(request, baseDirHandle, fileName);
+  return handleFileRequest(request, baseDirHandle, pathSegments, {
+    isDirectoryRequest: fileName.isDirectoryRequest
+  });
 }

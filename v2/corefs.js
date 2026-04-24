@@ -8,6 +8,45 @@ const handleOptions = () => createResponse(null, {
     'Allow': SUPPORTED_METHODS.join(', ')
   }
 });
+
+function encodePathComponent(component) {
+  return encodeURIComponent(component).replace(/'/g, '%27');
+}
+
+function buildChildUrl(baseUrl, name, isDirectory = false) {
+  const url = new URL(baseUrl);
+  url.search = '';
+  url.hash = '';
+  if (!url.pathname.endsWith('/')) {
+    url.pathname += '/';
+  }
+  url.pathname += encodePathComponent(name);
+  if (isDirectory) {
+    url.pathname += '/';
+  }
+  return url.href;
+}
+
+function buildParentUrl(baseUrl) {
+  const url = new URL(baseUrl);
+  url.search = '';
+  url.hash = '';
+  const segments = url.pathname.split('/').filter(Boolean);
+  if (segments.length > 0) {
+    segments.pop();
+  }
+  url.pathname = `/${segments.join('/')}${segments.length ? '/' : ''}`;
+  return url.href;
+}
+
+function buildRootUrl(baseUrl, depth) {
+  let rootUrl = baseUrl;
+  for (let index = 0; index < depth; index += 1) {
+    rootUrl = buildParentUrl(rootUrl);
+  }
+  return rootUrl;
+}
+
 function getWikiCreatorHtml(fileName) {
   return renderHtmlPage({
     title: 'Create new TiddlyWiki file',
@@ -43,9 +82,48 @@ function getWikiCreatorHtml(fileName) {
   });
 }
 
-const handleGetFile = async (dirHandle, fileName, headersOnly = false) => {
+async function getDirectoryHandleForPath(baseDirHandle, pathSegments, create = false) {
+  let directoryHandle = baseDirHandle;
+  for (const segment of pathSegments) {
+    directoryHandle = await directoryHandle.getDirectoryHandle(segment, { create });
+  }
+  return directoryHandle;
+}
+
+async function getFileHandleForPath(baseDirHandle, pathSegments, create = false) {
+  const parentDirectoryHandle = await getDirectoryHandleForPath(baseDirHandle, pathSegments.slice(0, -1), create);
+  return parentDirectoryHandle.getFileHandle(pathSegments.at(-1), { create });
+}
+
+async function getPathKind(baseDirHandle, pathSegments) {
+  if (pathSegments.length === 0) {
+    return 'directory';
+  }
+
   try {
-    const fileHandle = await dirHandle.getFileHandle(fileName);
+    await getFileHandleForPath(baseDirHandle, pathSegments, false);
+    return 'file';
+  } catch (error) {
+    if (error.name !== 'NotFoundError') {
+      throw error;
+    }
+  }
+
+  try {
+    await getDirectoryHandleForPath(baseDirHandle, pathSegments, false);
+    return 'directory';
+  } catch (error) {
+    if (error.name === 'NotFoundError') {
+      return null;
+    }
+    throw error;
+  }
+}
+
+const handleGetFile = async (dirHandle, pathSegments, headersOnly = false) => {
+  const fileName = pathSegments.join('/');
+  try {
+    const fileHandle = await getFileHandleForPath(dirHandle, pathSegments);
     const file = await fileHandle.getFile();
     const contents = headersOnly ? null :
       (file.type.startsWith('text/') ? await file.text() : await file.arrayBuffer());
@@ -58,16 +136,6 @@ const handleGetFile = async (dirHandle, fileName, headersOnly = false) => {
       }
     });
   } catch (error) {
-    if (error.name === 'NotFoundError') {
-      // TODO: only do this for .html suffix. Return a plain 404 otherwise?
-      // Return an html page which allows wiki to be uploaded or fetched from url
-      // the page will be replaced with the wiki and the put saver will takeover from there
-      return createResponse(getWikiCreatorHtml(fileName), {
-        status: 404,
-        statusText: "File not found",
-        headers: { "Content-Type": "text/html" }
-      });
-    }
     // Handle other errors
     console.error('Error accessing file:', error);
     return createResponse(`Error accessing file '${fileName}: ${error}'.`, {
@@ -77,9 +145,10 @@ const handleGetFile = async (dirHandle, fileName, headersOnly = false) => {
     });
   }
 };
-const handlePutFile = async (dirHandle, fileName, request) => {
+const handlePutFile = async (dirHandle, pathSegments, request) => {
+  const fileName = pathSegments.join('/');
   try {
-    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+    const fileHandle = await getFileHandleForPath(dirHandle, pathSegments, true);
     const writable = await fileHandle.createWritable();
     const contentType = request.headers.get('Content-Type');
     const content = contentType?.includes('text/') ? await request.text() : await request.arrayBuffer();
@@ -96,9 +165,11 @@ const handlePutFile = async (dirHandle, fileName, request) => {
     });
   }
 };
-const handleDeleteFile = async (dirHandle, fileName) => {
+const handleDeleteFile = async (dirHandle, pathSegments) => {
+  const fileName = pathSegments.join('/');
   try {
-    await dirHandle.removeEntry(fileName);
+    const parentDirectoryHandle = await getDirectoryHandleForPath(dirHandle, pathSegments.slice(0, -1), false);
+    await parentDirectoryHandle.removeEntry(pathSegments.at(-1));
     return createResponse(null, { status: 204, statusText: "No Content" });
   } catch (error) {
     if (error.name === 'NotFoundError') {
@@ -131,29 +202,50 @@ function formatFileSize(bytes) {
   return size.toFixed(unitIndex === 0 ? 0 : 1) + ' ' + units[unitIndex];
 }
 
-function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} = {}) {
-  // Properly encode URLs for security
-  const encodePathComponent = (component) => {
-    return encodeURIComponent(component).replace(/'/g, '%27');
-  };
+function getBreadcrumbHtml(baseUrl, pathSegments, rootLabel = 'Root') {
+  const rootUrl = buildRootUrl(baseUrl, pathSegments.length);
+  const items = [`<a href="${escapeAttribute(rootUrl)}">${escapeHtml(rootLabel)}</a>`];
+  let currentHref = rootUrl;
+  pathSegments.forEach((segment, index) => {
+    currentHref = buildChildUrl(currentHref, segment, true);
+    if (index === pathSegments.length - 1) {
+      items.push(`<span>${escapeHtml(segment)}</span>`);
+    } else {
+      items.push(`<a href="${escapeAttribute(currentHref)}">${escapeHtml(segment)}</a>`);
+    }
+  });
 
+  return `<nav class="breadcrumbs" aria-label="Breadcrumbs">${items.join('<span class="breadcrumb-separator">/</span>')}</nav>`;
+}
+
+function getDirectoryListHtml(baseUrl, entries, {
+  storageWarningHtml,
+  footerHtml,
+  sectionHtml,
+  pageData,
+  extraScripts = [],
+  currentPathSegments = [],
+  showCreateForm = true
+} = {}) {
   // Create file list HTML only if files exist
-  const fileListHtml = files.length === 0 ? "" : `
+  const fileListHtml = entries.length === 0 ? "" : `
     <div class="file-list">
       <h2>Files in this directory</h2>
       <ul class="file-items">
-        ${files.map(f => {
-          const encodedPath = encodePathComponent(f.name);
-          const fullPath = `${baseUrl}${encodedPath}`;
+        ${entries.map((entry) => {
+          const isDirectory = entry.kind === 'directory';
+          const fullPath = buildChildUrl(baseUrl, entry.name, isDirectory);
           return `
           <li class="file-item">
             <div class="file-info">
-              <a href="${escapeAttribute(fullPath)}" class="file-link">${escapeHtml(f.name)}</a>
-              ${f.size !== undefined ? `<span class="file-size">(${formatFileSize(f.size)})</span>` : ''}
+              <a href="${escapeAttribute(fullPath)}" class="file-link">${escapeHtml(entry.name)}${isDirectory ? '/' : ''}</a>
+              ${entry.size !== undefined ? `<span class="file-size">(${formatFileSize(entry.size)})</span>` : ''}
             </div>
             <div class="file-actions">
-              <button type="button" class="download-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(f.name)}" aria-label="Download ${escapeAttribute(f.name)}">Download</button>
-              <button type="button" class="delete-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(f.name)}" aria-label="Delete ${escapeAttribute(f.name)}">Delete</button>
+              ${isDirectory ? '' : `
+              <button type="button" class="download-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(entry.name)}" aria-label="Download ${escapeAttribute(entry.name)}">Download</button>
+              <button type="button" class="delete-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(entry.name)}" aria-label="Delete ${escapeAttribute(entry.name)}">Delete</button>
+              `}
             </div>
           </li>`;
         }).join("")}
@@ -164,41 +256,71 @@ function getDirectoryListHtml(baseUrl, files, {storageWarningHtml, footerHtml} =
   return renderHtmlPage({
     title: 'File Directory',
     stylesheets: ['styles/directory-list.css'],
+    head: `${pageData ? pageDataScript(pageData) : ''}`,
     body: `
       <h1>File Directory</h1>
+      ${getBreadcrumbHtml(baseUrl, currentPathSegments)}
 
       ${storageWarningHtml ? `<div class="warning-message">${storageWarningHtml}</div>` : ""}
+      ${sectionHtml || ''}
 
+      ${showCreateForm ? `
       <div class="create-form">
         <div class="input-wrapper">
-          <input type="text" id="urlInput" placeholder="New wiki name" aria-label="New wiki name">
+          <input type="text" id="urlInput" placeholder="New wiki path or name" aria-label="New wiki path or name">
           <span class="file-extension">.html</span>
         </div>
         <button id="createButton" type="button">Create</button>
       </div>
+      ` : ''}
 
       ${fileListHtml || '<p class="empty-state">No files in this directory</p>'}
 
       ${footerHtml || ""}
     `,
-    scripts: ['scripts/directory-list.js']
+    scripts: [...extraScripts, 'scripts/directory-list.js']
   });
 }
-const handleListDirectory = async (dirHandle, request, storageWarningHtml) => {
+const handleListDirectory = async (dirHandle, request, {
+  storageWarningHtml,
+  footerHtml,
+  sectionHtml,
+  pageData,
+  extraScripts,
+  currentPathSegments = [],
+  showCreateForm = true
+} = {}) => {
   try {
-    const files = [];
-    for await (const file of dirHandle.values()) {
-      files.push(file);
+    const entries = [];
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'file') {
+        const file = await entry.getFile();
+        entries.push({ kind: entry.kind, name: entry.name, size: file.size });
+      } else {
+        entries.push({ kind: entry.kind, name: entry.name });
+      }
     }
-    // Ensure consistent order of the files by sorting by name
-    files.sort((a, b) => a.name.localeCompare(b.name));
+    entries.sort((a, b) => {
+      if (a.kind !== b.kind) {
+        return a.kind === 'directory' ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
 
     const acceptHeader = request.headers.get("Accept");
     if (acceptHeader?.includes("application/json")) {
-      const json = JSON.stringify(files.map(file => ({ kind: file.kind, name: file.name })));
+      const json = JSON.stringify(entries.map((entry) => ({ kind: entry.kind, name: entry.name })));
       return createResponse(json, { headers: { "Content-Type": "application/json" } });
     } else {
-      const html = getDirectoryListHtml(request.url, files, storageWarningHtml);
+      const html = getDirectoryListHtml(request.url, entries, {
+        storageWarningHtml,
+        footerHtml,
+        sectionHtml,
+        pageData,
+        extraScripts,
+        currentPathSegments,
+        showCreateForm
+      });
       return createResponse(html, { headers: { "Content-Type": "text/html" } });
     }
   } catch (error) {
@@ -211,10 +333,13 @@ const handleListDirectory = async (dirHandle, request, storageWarningHtml) => {
   }
 };
 
-async function fileExists(directoryHandle, fileName) {
+async function fileExists(directoryHandle, pathSegments) {
+    if (!pathSegments || pathSegments.length === 0) {
+        return false;
+    }
     try {
         // Attempt to get the file handle
-        await directoryHandle.getFileHandle(fileName, { create: false });
+        await getFileHandleForPath(directoryHandle, pathSegments, false);
         return true; // File exists
     } catch (error) {
         if (error.name === 'NotFoundError') {
@@ -224,28 +349,63 @@ async function fileExists(directoryHandle, fileName) {
     }
 }
 
-function handleFileRequest(request, baseDirHandle, fileName) {
+async function handleFileRequest(request, baseDirHandle, pathSegments = [], { isDirectoryRequest = false, directoryOptions = {} } = {}) {
   const { method } = request;
-  if (fileName) {
-    switch (method) {
-      case 'GET':
-        return handleGetFile(baseDirHandle, fileName);
-      case 'PUT':
-        return handlePutFile(baseDirHandle, fileName, request);
-      case 'DELETE':
-        return handleDeleteFile(baseDirHandle, fileName);
-      case 'HEAD':
-        return handleGetFile(baseDirHandle, fileName, true);
-      case 'OPTIONS':
-        return handleOptions();
-      default:
-        return createResponse(`Method ${method} not allowed`, {
-          status: 405,
-          statusText: 'Method Not Allowed',
-          headers: { 'Allow': SUPPORTED_METHODS.join(', ') }
+
+  switch (method) {
+    case 'GET':
+    case 'HEAD': {
+      if (isDirectoryRequest || pathSegments.length === 0) {
+        try {
+          const directoryHandle = await getDirectoryHandleForPath(baseDirHandle, pathSegments, false);
+          return handleListDirectory(directoryHandle, request, {
+            ...directoryOptions,
+            currentPathSegments: pathSegments
+          });
+        } catch (error) {
+          if (error.name === 'NotFoundError') {
+            return createResponse(`Directory '${pathSegments.join('/')}' not found.`, {
+              status: 404,
+              statusText: 'Directory not found',
+              headers: { 'Content-Type': 'text/plain' }
+            });
+          }
+          throw error;
+        }
+      }
+
+      const pathKind = await getPathKind(baseDirHandle, pathSegments);
+      if (pathKind === 'directory') {
+        const redirectUrl = new URL(request.url);
+        redirectUrl.search = '';
+        redirectUrl.hash = '';
+        redirectUrl.pathname += '/';
+        return createResponse(null, {
+          status: 301,
+          statusText: 'Moved Permanently',
+          headers: { 'Location': redirectUrl.href }
         });
+      }
+      if (pathKind === 'file') {
+        return handleGetFile(baseDirHandle, pathSegments, method === 'HEAD');
+      }
+      return createResponse(getWikiCreatorHtml(pathSegments.join('/')), {
+        status: 404,
+        statusText: "File not found",
+        headers: { "Content-Type": "text/html" }
+      });
     }
-  } else {
-    return handleListDirectory(baseDirHandle, request);
+    case 'PUT':
+      return handlePutFile(baseDirHandle, pathSegments, request);
+    case 'DELETE':
+      return handleDeleteFile(baseDirHandle, pathSegments);
+    case 'OPTIONS':
+      return handleOptions();
+    default:
+      return createResponse(`Method ${method} not allowed`, {
+        status: 405,
+        statusText: 'Method Not Allowed',
+        headers: { 'Allow': SUPPORTED_METHODS.join(', ') }
+      });
   }
 }
