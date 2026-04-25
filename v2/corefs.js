@@ -165,6 +165,41 @@ const handlePutFile = async (dirHandle, pathSegments, request) => {
     });
   }
 };
+const handlePutDirectory = async (dirHandle, pathSegments) => {
+  const directoryName = pathSegments.join('/');
+
+  if (pathSegments.length === 0) {
+    return createResponse('Cannot create the root directory.', {
+      status: 400,
+      statusText: 'Bad Request',
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+
+  try {
+    const pathKind = await getPathKind(dirHandle, pathSegments);
+    if (pathKind === 'file') {
+      return createResponse(`Cannot create directory '${directoryName}'. A file already exists at that path.`, {
+        status: 409,
+        statusText: 'Conflict',
+        headers: { 'Content-Type': 'text/plain' }
+      });
+    }
+    if (pathKind === 'directory') {
+      return createResponse(null, { status: 204, statusText: 'No Content' });
+    }
+
+    await getDirectoryHandleForPath(dirHandle, pathSegments, true);
+    return createResponse(null, { status: 201, statusText: 'Created' });
+  } catch (error) {
+    console.error('Error creating directory:', error);
+    return createResponse(`Error creating directory '${directoryName}: ${error}'.`, {
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+};
 const handleDeleteFile = async (dirHandle, pathSegments) => {
   const fileName = pathSegments.join('/');
   try {
@@ -265,12 +300,27 @@ function getDirectoryListHtml(baseUrl, entries, {
       ${sectionHtml || ''}
 
       ${showCreateForm ? `
-      <div class="create-form">
-        <div class="input-wrapper">
-          <input type="text" id="urlInput" placeholder="New wiki path or name" aria-label="New wiki path or name">
-          <span class="file-extension">.html</span>
-        </div>
-        <button id="createButton" type="button">Create</button>
+      <div class="create-actions">
+        <section class="create-panel">
+          <h2>Create Wiki</h2>
+          <div class="create-form">
+            <div class="input-wrapper">
+              <input type="text" id="urlInput" placeholder="New wiki path or name" aria-label="New wiki path or name">
+              <span class="file-extension">.html</span>
+            </div>
+            <button id="createButton" type="button">Create</button>
+          </div>
+        </section>
+
+        <section class="create-panel">
+          <h2>Create Directory</h2>
+          <div class="create-form">
+            <div class="input-wrapper">
+              <input type="text" id="directoryInput" placeholder="New directory path or name" aria-label="New directory path or name">
+            </div>
+            <button id="createDirectoryButton" type="button">Create</button>
+          </div>
+        </section>
       </div>
       ` : ''}
 
@@ -396,6 +446,9 @@ async function handleFileRequest(request, baseDirHandle, pathSegments = [], { is
       });
     }
     case 'PUT':
+      if (isDirectoryRequest) {
+        return handlePutDirectory(baseDirHandle, pathSegments);
+      }
       return handlePutFile(baseDirHandle, pathSegments, request);
     case 'DELETE':
       return handleDeleteFile(baseDirHandle, pathSegments);

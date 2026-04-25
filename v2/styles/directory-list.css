@@ -42,6 +42,24 @@ h2 {
   gap: 5px;
 }
 
+.create-actions {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.create-panel {
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.create-panel h2 {
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
 .input-wrapper {
   display: flex;
   align-items: center;
@@ -185,6 +203,10 @@ a.btn {
 
   .input-wrapper {
     width: 100%;
+  }
+
+  .create-form button {
+    margin-top: 8px;
   }
 
   button {

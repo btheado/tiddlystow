@@ -16,6 +16,10 @@ function normalizeWikiPath(input) {
   return /\.(html?|xhtml)$/i.test(trimmed) ? trimmed : `${trimmed}.html`;
 }
 
+function normalizeDirectoryPath(input) {
+  return input.trim().replace(/^\/+|\/+$/g, '');
+}
+
 function getNativeFSMountsKey(rootKey) {
   return `${rootKey}${NATIVEFS_MOUNTS_KEY_SUFFIX}`;
 }
@@ -45,12 +49,51 @@ function getUniqueMountSlug(baseSlug, mounts) {
 }
 
 function navigateToURL() {
-  const userInput = document.getElementById('urlInput').value.trim();
+  const urlInput = document.getElementById('urlInput');
+  const userInput = urlInput?.value.trim() || '';
   if (userInput !== '') {
     const wikiPath = normalizeWikiPath(userInput);
     window.location.href = encodePathForUrl(wikiPath);
   } else {
     alert('Please enter a file name');
+  }
+}
+
+function buildDirectoryUrl(directoryPath) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  if (!url.pathname.endsWith('/')) {
+    url.pathname += '/';
+  }
+  url.pathname += `${encodePathForUrl(directoryPath)}/`;
+  return url.href;
+}
+
+async function createDirectory() {
+  const directoryInput = document.getElementById('directoryInput');
+  const userInput = directoryInput?.value || '';
+  const directoryPath = normalizeDirectoryPath(userInput);
+
+  if (!directoryPath) {
+    alert('Please enter a directory name');
+    return;
+  }
+
+  const directoryUrl = buildDirectoryUrl(directoryPath);
+
+  try {
+    const response = await fetch(directoryUrl, { method: 'PUT' });
+    if (response.ok) {
+      window.location.href = directoryUrl;
+      return;
+    }
+
+    const errorMessage = await response.text();
+    alert(errorMessage || `Failed to create directory: ${directoryPath}`);
+  } catch (error) {
+    alert('Error creating directory: ' + error.message);
+    console.error('Create directory error:', error);
   }
 }
 
@@ -139,6 +182,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const createButton = document.getElementById('createButton');
   if (createButton) {
     createButton.addEventListener('click', navigateToURL);
+  }
+
+  const directoryInput = document.getElementById('directoryInput');
+  if (directoryInput) {
+    directoryInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        createDirectory();
+      }
+    });
+  }
+
+  const createDirectoryButton = document.getElementById('createDirectoryButton');
+  if (createDirectoryButton) {
+    createDirectoryButton.addEventListener('click', createDirectory);
   }
 
   document.querySelectorAll('.delete-btn[data-url]').forEach((button) => {
