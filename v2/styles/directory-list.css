@@ -49,6 +49,7 @@ h2 {
 
 .create-actions {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -201,6 +202,10 @@ a.btn {
 }
 
 @media (max-width: 600px) {
+  .create-actions {
+    grid-template-columns: 1fr;
+  }
+
   .create-form {
     flex-direction: column;
     align-items: stretch;
