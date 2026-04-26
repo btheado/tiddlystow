@@ -7,9 +7,6 @@ const createResponse = (body, options = {}) => {
   return new Response(body, { status, statusText, headers: new Headers(headers) });
 };
 
-// TODO: home page links
-// TODO: add download/backup buttons to the directory list page (but only for opfs?)
-
 importScripts('./idbKeyval.js', './page.js', './corefs.js', './opfs.js', './nativefs.js');
 
 // Fetch handler to convert HTTP read/write methods to browser file system calls
