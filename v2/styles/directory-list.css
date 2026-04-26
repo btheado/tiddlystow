@@ -30,6 +30,11 @@ h2 {
   text-decoration: none;
 }
 
+.breadcrumb-home {
+  font-size: 1.1em;
+  line-height: 1;
+}
+
 .breadcrumb-separator {
   margin: 0 8px;
   color: #999;

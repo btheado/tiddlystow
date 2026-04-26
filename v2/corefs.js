@@ -238,11 +238,23 @@ function formatFileSize(bytes) {
 }
 
 function getBreadcrumbHtml(baseUrl, pathSegments, {
-  rootLabel = 'Root',
   rootUrl = buildRootUrl(baseUrl, pathSegments.length),
+  homeUrl = buildParentUrl(rootUrl),
+  rootLabel = 'root',
   breadcrumbItems = null
 } = {}) {
-  const items = [`<a href="${escapeAttribute(rootUrl)}">${escapeHtml(rootLabel)}</a>`];
+  const items = [];
+  const hasChildItems = breadcrumbItems ? breadcrumbItems.length > 0 : pathSegments.length > 0;
+
+  if (homeUrl) {
+    items.push(`<a href="${escapeAttribute(homeUrl)}" class="breadcrumb-home" aria-label="Home" title="Home">&#8962;</a>`);
+  }
+
+  if (hasChildItems) {
+    items.push(`<a href="${escapeAttribute(rootUrl)}">${escapeHtml(rootLabel)}</a>`);
+  } else {
+    items.push(`<span>${escapeHtml(rootLabel)}</span>`);
+  }
 
   if (breadcrumbItems) {
     breadcrumbItems.forEach((item, index) => {
