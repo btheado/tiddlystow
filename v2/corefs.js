@@ -237,9 +237,24 @@ function formatFileSize(bytes) {
   return size.toFixed(unitIndex === 0 ? 0 : 1) + ' ' + units[unitIndex];
 }
 
-function getBreadcrumbHtml(baseUrl, pathSegments, rootLabel = 'Root') {
-  const rootUrl = buildRootUrl(baseUrl, pathSegments.length);
+function getBreadcrumbHtml(baseUrl, pathSegments, {
+  rootLabel = 'Root',
+  rootUrl = buildRootUrl(baseUrl, pathSegments.length),
+  breadcrumbItems = null
+} = {}) {
   const items = [`<a href="${escapeAttribute(rootUrl)}">${escapeHtml(rootLabel)}</a>`];
+
+  if (breadcrumbItems) {
+    breadcrumbItems.forEach((item, index) => {
+      if (item.href && index < breadcrumbItems.length - 1) {
+        items.push(`<a href="${escapeAttribute(item.href)}">${escapeHtml(item.label)}</a>`);
+      } else {
+        items.push(`<span>${escapeHtml(item.label)}</span>`);
+      }
+    });
+    return `<nav class="breadcrumbs" aria-label="Breadcrumbs">${items.join('<span class="breadcrumb-separator">/</span>')}</nav>`;
+  }
+
   let currentHref = rootUrl;
   pathSegments.forEach((segment, index) => {
     currentHref = buildChildUrl(currentHref, segment, true);
@@ -260,7 +275,8 @@ function getDirectoryListHtml(baseUrl, entries, {
   pageData,
   extraScripts = [],
   currentPathSegments = [],
-  showCreateForm = true
+  showCreateForm = true,
+  breadcrumbOptions = null
 } = {}) {
   // Create file list HTML only if files exist
   const fileListHtml = entries.length === 0 ? "" : `
@@ -294,7 +310,7 @@ function getDirectoryListHtml(baseUrl, entries, {
     head: `${pageData ? pageDataScript(pageData) : ''}`,
     body: `
       <h1>File Directory</h1>
-      ${getBreadcrumbHtml(baseUrl, currentPathSegments)}
+      ${getBreadcrumbHtml(baseUrl, currentPathSegments, breadcrumbOptions || {})}
 
       ${storageWarningHtml ? `<div class="warning-message">${storageWarningHtml}</div>` : ""}
       ${sectionHtml || ''}
@@ -338,7 +354,8 @@ const handleListDirectory = async (dirHandle, request, {
   pageData,
   extraScripts,
   currentPathSegments = [],
-  showCreateForm = true
+  showCreateForm = true,
+  breadcrumbOptions = null
 } = {}) => {
   try {
     const entries = [];
@@ -369,7 +386,8 @@ const handleListDirectory = async (dirHandle, request, {
         pageData,
         extraScripts,
         currentPathSegments,
-        showCreateForm
+        showCreateForm,
+        breadcrumbOptions
       });
       return createResponse(html, { headers: { "Content-Type": "text/html" } });
     }

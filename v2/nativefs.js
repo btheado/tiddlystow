@@ -60,6 +60,29 @@ function getNativeFSMountUrl(route, mountSlug) {
   return `${getAssetUrl(route)}@${encodePathComponent(mountSlug)}/`;
 }
 
+function getNativeFSMountLabel(mounts, mountSlug) {
+  return mounts.find((mount) => mount.slug === mountSlug)?.name || mountSlug;
+}
+
+function getNativeFSMountBreadcrumbItems(route, mounts, mountSlug, pathSegments) {
+  const mountUrl = getNativeFSMountUrl(route, mountSlug);
+  const items = [{
+    label: getNativeFSMountLabel(mounts, mountSlug),
+    href: pathSegments.length > 0 ? mountUrl : null
+  }];
+
+  let currentUrl = mountUrl;
+  pathSegments.forEach((segment, index) => {
+    currentUrl = buildChildUrl(currentUrl, segment, true);
+    items.push({
+      label: segment,
+      href: index < pathSegments.length - 1 ? currentUrl : null
+    });
+  });
+
+  return items;
+}
+
 async function ensureNativeFSMountState(idbKey) {
   let mounts = await getNativeFSMounts(idbKey);
   let defaultMountSlug = await getNativeFSDefaultMountSlug(idbKey);
@@ -143,7 +166,7 @@ function handleNativeFSPermissionNotGranted(idbKey) {
 }
 
 function getNativeFSMountSectionHtml(route, mounts) {
-  const mountItems = mounts.length === 0 ? '<p class="empty-state">No additional directories attached.</p>' : `
+  const mountItems = mounts.length === 0 ? '<p class="empty-state">No external directories attached.</p>' : `
     <ul class="mount-list">
       ${mounts.map((mount) => `
         <li class="mount-item">
@@ -155,7 +178,7 @@ function getNativeFSMountSectionHtml(route, mounts) {
 
   return `
     <section class="secondary-section">
-      <h2>Attached External Directories</h2>
+      <h2>External Directories</h2>
       ${mountItems}
       <button type="button" id="attachDirectoryButton">Attach Another Directory</button>
     </section>
@@ -188,29 +211,32 @@ async function removeNativeFSMount(idbKey, mountSlug) {
   }
 }
 
+function getNativeFSRootDirectoryHandle() {
+  return {
+    async *values() {
+    }
+  };
+}
+
 const handleNativeFsRequest = async (request, route, dirName, pathInfo) => {
   const idbKey = dirName;
   const { mountSlug, pathSegments, isDirectoryRequest } = pathInfo;
   const { mounts, defaultMountSlug } = await ensureNativeFSMountState(idbKey);
 
   if (!mountSlug && pathSegments.length === 0) {
-    if (defaultMountSlug) {
-      return createResponse(null, {
-        status: 302,
-        statusText: 'Found',
-        headers: { 'Location': getNativeFSMountUrl(route, defaultMountSlug) }
-      });
+    if (request.method === 'DELETE') {
+      return handleNativeFSDirectorySelection(idbKey);
     }
 
-    if (mounts.length > 0) {
-      return createResponse(null, {
-        status: 302,
-        statusText: 'Found',
-        headers: { 'Location': getNativeFSMountUrl(route, mounts[0].slug) }
-      });
-    }
-
-    return handleNativeFSDirectorySelection(idbKey);
+    return handleListDirectory(getNativeFSRootDirectoryHandle(), request, {
+      sectionHtml: getNativeFSMountSectionHtml(route, mounts),
+      pageData: { nativeFsRootKey: idbKey },
+      extraScripts: ['idbKeyval.js'],
+      showCreateForm: false,
+      breadcrumbOptions: {
+        rootUrl: getAssetUrl(route)
+      }
+    });
   }
 
   const handleKey = getNativeFSMountHandleKey(idbKey, mountSlug);
@@ -234,7 +260,6 @@ const handleNativeFsRequest = async (request, route, dirName, pathInfo) => {
   }
 
   const isDefaultMount = mountSlug === defaultMountSlug;
-  const attachedMounts = mounts.filter((mount) => mount.slug !== defaultMountSlug);
   const defaultMountUrl = defaultMountSlug ? getNativeFSMountUrl(route, defaultMountSlug) : getAssetUrl(route);
   const redirectUrl = isDefaultMount ? getAssetUrl(route) : defaultMountUrl;
   const footerHtml = isDefaultMount
@@ -245,9 +270,10 @@ const handleNativeFsRequest = async (request, route, dirName, pathInfo) => {
     isDirectoryRequest,
     directoryOptions: {
       footerHtml: pathSegments.length === 0 ? footerHtml : '',
-      sectionHtml: isDefaultMount && pathSegments.length === 0 ? getNativeFSMountSectionHtml(route, attachedMounts) : '',
-      pageData: isDefaultMount && pathSegments.length === 0 ? { nativeFsRootKey: idbKey } : null,
-      extraScripts: isDefaultMount && pathSegments.length === 0 ? ['idbKeyval.js'] : []
+      breadcrumbOptions: {
+        rootUrl: getAssetUrl(route),
+        breadcrumbItems: getNativeFSMountBreadcrumbItems(route, mounts, mountSlug, pathSegments)
+      }
     }
   });
 }
