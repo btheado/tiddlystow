@@ -288,7 +288,8 @@ function getDirectoryListHtml(baseUrl, entries, {
   extraScripts = [],
   currentPathSegments = [],
   showCreateForm = true,
-  breadcrumbOptions = null
+  breadcrumbOptions = null,
+  emptyStateHtml = '<p class="empty-state">No files in this directory</p>'
 } = {}) {
   // Create file list HTML only if files exist
   const fileListHtml = entries.length === 0 ? "" : `
@@ -352,7 +353,7 @@ function getDirectoryListHtml(baseUrl, entries, {
       </div>
       ` : ''}
 
-      ${fileListHtml || '<p class="empty-state">No files in this directory</p>'}
+      ${fileListHtml || emptyStateHtml}
 
       ${footerHtml || ""}
     `,

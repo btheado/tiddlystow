@@ -128,10 +128,11 @@ async function downloadFile(url, filename) {
   URL.revokeObjectURL(a.href);
 }
 
-async function disconnectDirectory() {
-  const disconnectButton = document.getElementById('disconnectDirectoryButton');
+async function disconnectDirectory(button) {
+  const disconnectButton = button || document.getElementById('disconnectDirectoryButton');
+  const targetUrl = disconnectButton?.dataset.url || window.location.href;
   try {
-    await fetch(window.location.href, { method: 'DELETE' });
+    await fetch(targetUrl, { method: 'DELETE' });
     if (disconnectButton?.dataset.redirectUrl) {
       window.location.href = disconnectButton.dataset.redirectUrl;
       return;
@@ -206,10 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
     button.addEventListener('click', () => downloadFile(button.dataset.url, button.dataset.fileName));
   });
 
-  const disconnectButton = document.getElementById('disconnectDirectoryButton');
-  if (disconnectButton) {
-    disconnectButton.addEventListener('click', disconnectDirectory);
-  }
+  document.querySelectorAll('.disconnect-button').forEach((button) => {
+    button.addEventListener('click', () => disconnectDirectory(button));
+  });
 
   const attachDirectoryButton = document.getElementById('attachDirectoryButton');
   if (attachDirectoryButton) {

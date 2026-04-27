@@ -167,20 +167,43 @@ function handleNativeFSPermissionNotGranted(idbKey) {
 
 function getNativeFSMountSectionHtml(route, mounts) {
   const mountItems = mounts.length === 0 ? '<p class="empty-state">No external directories attached.</p>' : `
-    <ul class="mount-list">
-      ${mounts.map((mount) => `
-        <li class="mount-item">
-          <a href="${escapeAttribute(getNativeFSMountUrl(route, mount.slug))}" class="file-link">${escapeHtml(mount.name)}</a>
-        </li>
-      `).join('')}
-    </ul>
+    <div class="file-list">
+      <h2>External Directories</h2>
+      <ul class="file-items">
+        ${mounts.map((mount) => {
+          const mountUrl = getNativeFSMountUrl(route, mount.slug);
+          return `
+            <li class="file-item">
+              <div class="file-info">
+                <a href="${escapeAttribute(mountUrl)}" class="file-link">${escapeHtml(mount.name)}</a>
+              </div>
+              <div class="file-actions">
+                <button
+                  type="button"
+                  class="disconnect-button mount-disconnect-btn"
+                  data-url="${escapeAttribute(mountUrl)}"
+                  data-file-name="${escapeAttribute(mount.name)}"
+                  aria-label="Disconnect ${escapeAttribute(mount.name)}"
+                >Disconnect</button>
+              </div>
+            </li>
+          `;
+        }).join('')}
+      </ul>
+    </div>
   `;
 
   return `
-    <section class="secondary-section">
-      <h2>External Directories</h2>
+    <div class="create-actions create-actions-single">
+      <section class="create-panel">
+        <h2>Attach Directory</h2>
+        <div class="create-form create-form-single-action">
+          <button type="button" id="attachDirectoryButton">Attach Directory</button>
+        </div>
+      </section>
+    </div>
+    <section>
       ${mountItems}
-      <button type="button" id="attachDirectoryButton">Attach Another Directory</button>
     </section>
   `;
 }
@@ -233,6 +256,7 @@ const handleNativeFsRequest = async (request, route, dirName, pathInfo) => {
       pageData: { nativeFsRootKey: idbKey },
       extraScripts: ['idbKeyval.js'],
       showCreateForm: false,
+      emptyStateHtml: '',
       breadcrumbOptions: {
         rootUrl: getAssetUrl(route)
       }

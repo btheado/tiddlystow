@@ -54,6 +54,10 @@ h2 {
   margin-bottom: 20px;
 }
 
+.create-actions-single {
+  grid-template-columns: 1fr;
+}
+
 .create-panel {
   padding: 12px;
   border: 1px solid #eee;
@@ -157,6 +161,10 @@ a.btn {
   margin-left: 10px;
 }
 
+.create-form-single-action {
+  margin-bottom: 0;
+}
+
 .warning-message {
   background-color: var(--warning-bg);
   border: 1px solid var(--warning-border);
@@ -169,24 +177,6 @@ a.btn {
 .warning-message a {
   color: var(--warning-text);
   font-weight: bold;
-}
-
-.secondary-section {
-  margin: 20px 0;
-  padding: 16px;
-  border: 1px solid #eee;
-  border-radius: 6px;
-  background: #fafafa;
-}
-
-.mount-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px;
-}
-
-.mount-item + .mount-item {
-  margin-top: 8px;
 }
 
 .footer-actions {
