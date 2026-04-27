@@ -337,7 +337,6 @@ function getDirectoryListHtml(baseUrl, entries, {
     stylesheets: ['styles/directory-list.css'],
     head: `${pageData ? pageDataScript(pageData) : ''}`,
     body: `
-      <h1>File Directory</h1>
       ${getBreadcrumbHtml(baseUrl, currentPathSegments, breadcrumbOptions || {})}
 
       ${storageWarningHtml ? `<div class="warning-message">${storageWarningHtml}</div>` : ""}
