@@ -39,6 +39,31 @@ h1 {
   gap: 10px;
 }
 
+.custom-template {
+  margin-top: 16px;
+}
+
+.custom-template label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.custom-template-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.custom-template-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #c7d0d9;
+  border-radius: 4px;
+  font: inherit;
+}
+
 button {
   background-color: #1976d2;
   color: white;
@@ -97,5 +122,12 @@ button:focus {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .custom-template-form {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

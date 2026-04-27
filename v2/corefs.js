@@ -64,6 +64,18 @@ function getWikiCreatorHtml(fileName) {
             <li><button type="button" data-url="https://tiddlywiki.com/empty.html" data-description="Empty TiddlyWiki" aria-label="Create from empty TiddlyWiki template">Latest release</button></li>
             <li><button type="button" data-url="https://tiddlywiki.com/prerelease/empty.html" data-description="Prerelease TiddlyWiki" aria-label="Create from TiddlyWiki prerelease template">Prerelease Version</button></li>
           </ul>
+          <div class="custom-template">
+            <label for="templateUrlInput">Or load a template from a custom URL:</label>
+            <div class="custom-template-form">
+              <input
+                type="url"
+                id="templateUrlInput"
+                placeholder="https://example.com/template.html"
+                aria-label="Custom template URL"
+              >
+              <button type="button" id="loadTemplateButton">Load URL</button>
+            </div>
+          </div>
         </div>
 
         <div class="section">

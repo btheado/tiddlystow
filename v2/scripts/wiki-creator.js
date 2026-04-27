@@ -60,6 +60,23 @@ async function openFromUrl(url, description) {
   }
 }
 
+function loadCustomTemplate() {
+  const input = document.getElementById('templateUrlInput');
+  const value = input?.value.trim() || '';
+
+  if (!value) {
+    showStatus('Please enter a template URL', 'error');
+    return;
+  }
+
+  try {
+    const templateUrl = new URL(value, window.location.href);
+    openFromUrl(templateUrl.href, 'custom template');
+  } catch (error) {
+    showStatus('Please enter a valid template URL', 'error');
+  }
+}
+
 function openFromUpload(event) {
   const fileInput = event.target;
   const file = fileInput.files[0];
@@ -98,6 +115,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.button-list button[data-url]').forEach((button) => {
     button.addEventListener('click', () => openFromUrl(button.dataset.url, button.dataset.description));
   });
+
+  const templateUrlInput = document.getElementById('templateUrlInput');
+  const loadTemplateButton = document.getElementById('loadTemplateButton');
+  if (templateUrlInput && loadTemplateButton) {
+    loadTemplateButton.addEventListener('click', loadCustomTemplate);
+    templateUrlInput.addEventListener('keypress', (event) => {
+      if (event.key === 'Enter') {
+        loadCustomTemplate();
+      }
+    });
+  }
 
   const fileInput = document.getElementById('fileInput');
   fileInput.addEventListener('change', openFromUpload);
