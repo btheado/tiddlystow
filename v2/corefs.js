@@ -116,7 +116,7 @@ async function getPathKind(baseDirHandle, pathSegments) {
     await getFileHandleForPath(baseDirHandle, pathSegments, false);
     return 'file';
   } catch (error) {
-    if (error.name !== 'NotFoundError') {
+    if (error.name !== 'NotFoundError' && error.name !== 'TypeMismatchError') {
       throw error;
     }
   }
@@ -127,6 +127,9 @@ async function getPathKind(baseDirHandle, pathSegments) {
   } catch (error) {
     if (error.name === 'NotFoundError') {
       return null;
+    }
+    if (error.name === 'TypeMismatchError') {
+      return 'file';
     }
     throw error;
   }
