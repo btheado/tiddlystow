@@ -29,10 +29,12 @@ function getAssetUrl(path) {
 }
 
 function renderHtmlPage({ title, stylesheets = [], head = '', body, scripts = [] }) {
-  const stylesheetTags = stylesheets
+  const pageStylesheets = ['styles/sw-update.css', ...stylesheets];
+  const pageScripts = [...scripts, 'scripts/sw-update.js'];
+  const stylesheetTags = pageStylesheets
     .map((href) => `<link rel="stylesheet" href="${escapeAttribute(getAssetUrl(href))}">`)
     .join('\n');
-  const scriptTags = scripts
+  const scriptTags = pageScripts
     .map((src) => `<script src="${escapeAttribute(getAssetUrl(src))}"></script>`)
     .join('\n');
 

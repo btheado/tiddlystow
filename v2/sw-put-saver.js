@@ -9,6 +9,12 @@ const createResponse = (body, options = {}) => {
 
 importScripts('./idbKeyval.js', './page.js', './corefs.js', './opfs.js', './nativefs.js');
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Fetch handler to convert HTTP read/write methods to browser file system calls
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -68,10 +74,12 @@ self.addEventListener('install', (event) => {
         'manifest.json',
         'idbKeyval.js',
         'page.js',
+        'styles/sw-update.css',
         'styles/wiki-creator.css',
         'styles/directory-list.css',
         'styles/nativefs.css',
         'styles/opfs.css',
+        'scripts/sw-update.js',
         'scripts/wiki-creator.js',
         'scripts/directory-list.js',
         'scripts/nativefs-page.js',
@@ -82,4 +90,8 @@ self.addEventListener('install', (event) => {
       ]);
     })
   );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
 });

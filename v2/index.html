@@ -4,6 +4,7 @@
   <title>Tiddlystow put saver</title>
   <link rel="manifest" href="manifest.json">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles/sw-update.css">
   <style>
     :root {
       --page-bg: #f5f7f8;
@@ -199,6 +200,9 @@
       navigator.serviceWorker.register('./sw-put-saver.js')
         .then(function(registration) {
           console.log('Service Worker registered with scope:', registration.scope);
+          if (window.TiddlystowObserveServiceWorkerRegistration) {
+            window.TiddlystowObserveServiceWorkerRegistration(registration);
+          }
         })
         .catch(function(error) {
           console.error('Service Worker registration failed:', error);
@@ -241,5 +245,6 @@
       document.getElementById('status').textContent = "This site requires service worker functionality";
     }
   </script>
+  <script src="scripts/sw-update.js"></script>
 </body>
 </html>

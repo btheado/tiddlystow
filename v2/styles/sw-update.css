@@ -1,0 +1,55 @@
+.sw-update {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(28rem, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid #b7d7c4;
+  border-radius: 10px;
+  background: #f4fbf6;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+}
+
+.sw-update.hidden {
+  display: none;
+}
+
+.sw-update__message {
+  color: #244034;
+  font-size: 0.95rem;
+}
+
+.sw-update__button {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #2f855a;
+  color: #fff;
+  font: inherit;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.sw-update__button:hover {
+  background: #276749;
+}
+
+.sw-update__button:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+@media (max-width: 600px) {
+  .sw-update {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
