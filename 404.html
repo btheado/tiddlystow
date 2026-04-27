@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Redirecting to Tiddlystow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="refresh" content="0; url=./">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+
+    a {
+      color: #0a58ca;
+    }
+  </style>
+</head>
+<body>
+  <h1>Redirecting...</h1>
+  <p>This page redirects to the Tiddlystow app entry point.</p>
+  <p><a id="app-link" href="./">Continue to Tiddlystow</a></p>
+
+  <script>
+    const appMarker = '/v2/';
+    const markerIndex = window.location.pathname.indexOf(appMarker);
+    const targetUrl = markerIndex >= 0
+      ? new URL(window.location.pathname.slice(0, markerIndex + appMarker.length), window.location.origin)
+      : new URL('./', window.location.href);
+
+    document.getElementById('app-link').href = targetUrl.href;
+    window.location.replace(targetUrl.href);
+  </script>
+</body>
+</html>
