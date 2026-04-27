@@ -368,7 +368,8 @@ const handleListDirectory = async (dirHandle, request, {
   extraScripts,
   currentPathSegments = [],
   showCreateForm = true,
-  breadcrumbOptions = null
+  breadcrumbOptions = null,
+  emptyStateHtml = '<p class="empty-state">No files in this directory</p>'
 } = {}) => {
   try {
     const entries = [];
@@ -400,7 +401,8 @@ const handleListDirectory = async (dirHandle, request, {
         extraScripts,
         currentPathSegments,
         showCreateForm,
-        breadcrumbOptions
+        breadcrumbOptions,
+        emptyStateHtml
       });
       return createResponse(html, { headers: { "Content-Type": "text/html" } });
     }
