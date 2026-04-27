@@ -56,12 +56,18 @@
   <div class="container hidden" id="links-container">
     <div class="link-container">
       <div id="opfs-link" class="hidden">
-        <a href="./i/" class="link-button">Internal File Access</a>
-        <p>Uses browser's Origin Private File System (OPFS)</p>
+        <a href="./i/" class="link-button">Browser Storage</a>
+        <p>Uses the browser's internal sandboxed storage (OPFS).</p>
+        <p>Files are managed by the browser and isolated to this device.</p>
+        <p><strong>Note:</strong> the files will be permanently lost if you clear your browser data or site cache.</p>
       </div>
       <div id="nativefs-link" class="hidden">
-        <a href="./e/" class="link-button">External File Access</a>
+        <a href="./e/" class="link-button">Local Folder Access</a>
         <p>Uses Native File System API for directory access</p>
+        <p>Connect one or more folders from your device. Files remain under your control and stay accessible even if browser data is cleared.</p>
+      </div>
+      <div id="choose-storage-hint" class="hidden">
+        <p><strong>Recommendation:</strong> Use Local Folder Access as it is less vulnerable to accidental deletion than Browser Storage.</p>
       </div>
       <div id="file-access-not-supported" class="hidden">
         <p>To use this site either <a href="https://caniuse.com/native-filesystem-api">external file access</a> or <a href="https://caniuse.com/mdn-api_filesystemdirectoryhandle">internal file access</a> functionality is required.</p>
@@ -106,6 +112,9 @@
           }
           if (isNativeFsSupported) {
             document.getElementById('nativefs-link').classList.remove('hidden');
+          }
+          if (isOpfsSupported && isNativeFsSupported) {
+            document.getElementById('choose-storage-hint').classList.remove('hidden');
           }
         } else {
           document.getElementById('writable-file-stream-api-not-supported').classList.remove('hidden');
