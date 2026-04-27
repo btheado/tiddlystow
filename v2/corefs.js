@@ -306,7 +306,7 @@ function getDirectoryListHtml(baseUrl, entries, {
             </div>
             <div class="file-actions">
               ${isDirectory ? '' : `
-              <button type="button" class="download-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(entry.name)}" aria-label="Download ${escapeAttribute(entry.name)}">Download</button>
+              <button type="button" class="download-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(entry.name)}" aria-label="Export ${escapeAttribute(entry.name)}">Export</button>
               <button type="button" class="delete-btn" data-url="${escapeAttribute(fullPath)}" data-file-name="${escapeAttribute(entry.name)}" aria-label="Delete ${escapeAttribute(entry.name)}">Delete</button>
               `}
             </div>
