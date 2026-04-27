@@ -138,7 +138,8 @@
 
     @media (min-width: 760px) {
       .link-container {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 360px));
+        justify-content: center;
       }
 
       #file-access-not-supported,
@@ -158,16 +159,6 @@
 
   <div class="container hidden" id="links-container">
     <div class="link-container">
-      <section id="opfs-link" class="option-card hidden">
-        <div class="option-card-header">
-          <a href="./i/" class="link-button">Browser Storage</a>
-        </div>
-        <ul class="details-list">
-          <li>Uses the browser's internal sandboxed storage (OPFS).</li>
-          <li>Files are managed by the browser and isolated to this device.</li>
-          <li><strong>Note:</strong> files will be permanently lost if you clear browser data or site cache.</li>
-        </ul>
-      </section>
       <section id="nativefs-link" class="option-card hidden">
         <div class="option-card-header">
           <a href="./e/" class="link-button">Local Folder Access</a>
@@ -177,6 +168,16 @@
           <li>Uses the Native File System API for direct folder access.</li>
           <li>Connect one or more folders from your device.</li>
           <li>Files remain under your control and stay accessible even if browser data is cleared.</li>
+        </ul>
+      </section>
+      <section id="opfs-link" class="option-card hidden">
+        <div class="option-card-header">
+          <a href="./i/" class="link-button">Browser Storage</a>
+        </div>
+        <ul class="details-list">
+          <li>Uses the browser's internal sandboxed storage (OPFS).</li>
+          <li>Files are managed by the browser and isolated to this device.</li>
+          <li><strong>Note:</strong> files will be permanently lost if you clear browser data or site cache.</li>
         </ul>
       </section>
       <section id="file-access-not-supported" class="message-card warning-card hidden">
