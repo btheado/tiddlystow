@@ -286,9 +286,7 @@ const handleNativeFsRequest = async (request, route, dirName, pathInfo) => {
   const isDefaultMount = mountSlug === defaultMountSlug;
   const defaultMountUrl = defaultMountSlug ? getNativeFSMountUrl(route, defaultMountSlug) : getAssetUrl(route);
   const redirectUrl = isDefaultMount ? getAssetUrl(route) : defaultMountUrl;
-  const footerHtml = isDefaultMount
-    ? `<button type="button" class="disconnect-button" id="disconnectDirectoryButton" data-redirect-url="${escapeAttribute(redirectUrl)}">Disconnect Directory</button>`
-    : `<div class="footer-actions"><a href="${escapeAttribute(defaultMountUrl)}" class="btn">Back to default directory</a><button type="button" class="disconnect-button" id="disconnectDirectoryButton" data-redirect-url="${escapeAttribute(redirectUrl)}">Disconnect Directory</button></div>`;
+  const footerHtml = `<button type="button" class="disconnect-button" id="disconnectDirectoryButton" data-redirect-url="${escapeAttribute(redirectUrl)}">Disconnect Directory</button>`;
 
   return handleFileRequest(request, baseDirHandle, pathSegments, {
     isDirectoryRequest,
